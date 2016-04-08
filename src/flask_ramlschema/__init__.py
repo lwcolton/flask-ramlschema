@@ -1,169 +1,9 @@
 import os.path
 
-from bson.objectid import ObjectId
 from default_logger import get_default_logger
-from flask import abort, request, response
-import json
-import jsonschema
-import math
-import pymongo
 import yaml
 
-class RAMLResource:
-    def __init__(self, path, raml, logger, mongo_client, database_name, collection_name=None):
-        self.path = path
-        self.id_path = None
-        self.name = self.get_name(path)
-        self.raml = raml
-        self.logger = logger
-        self.mongo_client = mongo_client
-        self.database_name = database_name
-        if collection_name is None:
-            collection_name = self.name
-        self.parse_raml()
-
-    @property
-    def mongo_collection(self):
-        return self.mongo_client[self.database_name][self.collection_name]
-
-    def get_name(self, path):
-        path_parts = path.split("/")
-        if not path_parts[0]:
-            path_parts = path_parts[1:]
-        return path_parts[1]
-
-    def parse_raml(self):
-        if "collection" not in self.raml["type"]:
-            raise NotImplementedError("Only support collections")
-        self.new_item_schema = json.loads(self.raml["type"]["collection"]["newItemSchema"])
-
-        child_paths = [key for key in list(self.raml.keys()) if key.startswith("/")]
-        if len(child_paths) > 1:
-            raise NotImplementedError("Only supports one child path")
-        elif len(child_paths) == 0:
-            raise NotImplementedError("Collection must also implement ID based collection-item")
-
-        child_path = child_paths[0]
-        if not child_path.startswith("/{") or not child_path.endswith("}"):
-            raise NotImplementedError("Only supports one sub-path for ID parameter")
-        self.id_param_name = child_path[1:-1]
-        self.id_path = self.path + child_path
-        self.update_item_schema = json.loads(self.raml[child_path]["type"]["collection"]["updateItemSchema"])
-        self.logger.info("Loaded {0}".format(self.path))
-
-    def get_request_json(self, schema=None):
-        request_dict = request.json()
-        if schema is not None:
-            jsonschema.validate(request_dict, schema)
-        return request_dict
-
-    def set_response_json(self, response_dict, status=200):
-        response.data = json.dumps(response_dict)
-        response.mimetype = "application/json"
-        response.status = 200
-
-    def init_app(self, flask_app, collection_name=None, collection_items_name=None):
-        if collection_name is None:
-            collecion_name = self.name + "_collection"
-        if collection_items_name is None:
-            collection_items_name = self.name + "_item"
-        flask_app.add_url_rule(self.path, collecion_name, self.collection_endpoint)
-        flask_app.add_url_rule(self.path, collection_items_name, self.collection_items_endpoint)
-
-    def collection_endpoint(self):
-        if request.method == "POST":
-            return self.create_view()
-        elif request.method == "GET":
-            return self.list_view()
-        abort(405)
-
-    def collection_items_endpoint(self, document_id):
-        if request.method == "POST":
-            return self.update_view(document_id)
-        elif request.method == "GET":
-            return self.get_view(document_id)
-        elif request.method == "DELETE":
-            return self.delete_view(document_id)
-        abort(405)
-
-    def create_view(self):
-        request_dict = self.get_request_json(schema=self.new_item_schema)
-        document = request_dict["item"]
-        result = self.mongo_collection.insert_one(document)
-        response_dict = document
-        response_dict["id"] = str(result.inserted_id)
-        self.set_response_json({"item":response_dict})
-
-    def list_view(self):
-        page = request.args.get("page", 1)
-        per_page = request.args.get("per_page", 25)
-        if per_page > 100:
-            raise ValueError("per_page cannot be greated than 100")
-
-        sort_by = request.args.get("sort_by", "id")
-        if sort_by == "id":
-            sort_by = "_id"
-
-        # order values based on backbone-paginator
-        order_arg = request.args.get("order", 1)
-        if order_arg == 1:
-            order = pymongo.DESCENDING
-        else:
-            order = pymongo.ASCENDING
-        
-        find_cursor = self.mongo_collection.find()
-        total_entries = find_cursor.count()
-        page_wrapper = {}
-        page_wrapper["page"] = page
-        page_wrapper["per_page"] = per_page
-        page_wrapper["total_pages"] = int(math.ceil(total_entries / float(page_wrapper["per_page"])))
-        page_wrapper["total_entries"] = total_entries
-        page_wrapper["sort_by"] = sort_by
-        page_wrapper["order"] = order_arg
-
-        if page_wrapper["page"] > page_wrapper["total_pages"] or page_wrapper["page"] < 1:
-            if total_entries != 0 or page_wrapper["page"] != 1:
-                raise ValueError("invalid page number: {0]".format(page_wrapper["page"]))
-
-        items = list(find_cursor.sort(sort_by, order).skip(per_page*(page-1)).limit(per_page))
-        page_wrapper["items"] = items
-        self.set_response_json(page_wrapper)
-
-    def get_view(self, document_id):
-        object_id = ObjectId(document_id)
-        document = self.find_one_or_404({"_id":object_id})
-        if document is None:
-            response.status = 404
-            return
-        document["id"] = document_id
-        del document["_id"]
-        self.set_response_json({"item":document})
-
-    def update_view(self, document_id):
-        object_id = ObjectId(document_id)
-        request_dict = self.get_request_json(schema=self.update_item_schema)
-        document = self.find_one_or_404({"_id":object_id})
-        document.update(request_dict["item"])
-        del document["id"]
-
-        document["_id"] = object_id
-        self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
-        document["id"] = document_id
-        del document["_id"]
-        self.set_response_json({"item":document})
-
-    def delete_view(self, document_id):
-        object_id = ObjectId(document_id)
-        document = self.mongo_collection.find_one_and_delete({"_id":object_id})
-        if not document:
-            abort(404)
-        response.status = 204
-
-    def find_one_or_404(self, query):
-        document = self.mongo_collection.find_one(query)
-        if not document:
-            abort(404)
-        return document
+from .resource import RAMLResource
 
 class RAMLSchemaExtension:
     def __init__(self, mongo_client, database_name, raml_directory=None, logger=None):
@@ -175,14 +15,18 @@ class RAMLSchemaExtension:
         self.logger = logger
         self.resources = {}
 
-    def add_resource(self, flask_app, path, raml_path, **kwargs):
+    def add_resource(self, flask_app, path, raml_path, resource_class=None, **kwargs):
+        if path in self.resources:
+            raise ValueError("Will overwrite existing resource: {0}".format(path))
         mongo_client = kwargs.pop("mongo_client", self.mongo_client)
         database_name = kwargs.pop("database_name", self.database_name)
         if self.raml_directory:
             raml_path = os.path.join(self.raml_directory, raml_path)
         with open(raml_path, "r") as raml_handle:
             raml = yaml.load(raml_handle.read())
-        resource = RAMLResource(path, raml, mongo_client, database_name, **kwargs)
+        if resource_class is None:
+            resource_class = RAMLResource
+        resource = resource_class(path, raml, mongo_client, database_name, **kwargs)
         resource.init_app(flask_app)
         self.resources[path] = resource
         return resource
