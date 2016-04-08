@@ -1,20 +1,47 @@
+from flask.ext.stormpath.authorization import user_has_groups
+
 from .resource import RAMLResource
 
 class StormpathResource(RAMLResource):
-    def __init__(self, *args, groups_required, all_groups=False, **kwargs):
+    def __init__(self, *args, create_groups, view_groups, update_groups, delete_groups, admin_groups, **kwargs):
         super().__init__(*args, **kwargs)
-        self.groups_required = groups_required
-        self.all_groups = all_groups
+        self.create_groups = create_groups
+        self.view_groups = view_groups
+        self.update_groups = update_groups
+        self.delete_groups = delete_groups
+        self.admin_groups = admin_groups
 
-    
+    def create_allowed(self, *args, **kwargs):
+        return (
+            user_has_groups(self.create_groups) or \
+            user_has_groups(self.admin_groups)
+        )
+
+    def list_allowed(self, *args, **kwargs):
+        return self.view_allowed()
 
 
-    def init_app(self, flask_app, *args, **kwargs):
-        super().init_app(*args, **kwargs)
-        if app.before_request_funcs is None:
-            app.before_request_funcs = {}
-        app.before_request_funcs.setdefault(None, [])
-        app.before_request_funcs[None].append(self.validate_current_request)
+    def update_allowed(self, *args, **kwargs):
+        return (
+            user_has_groups(self.update_groups) or \
+            user_has_groups(self.admin_groups)
+        )
 
-    def validate_current_request(self):
-        url_rule
+    def item_view_allowed(self, *args, **kwargs):
+        return (
+            user_has_groups(self.view_groups) or \
+            user_has_groups(self.admin_groups)
+        )
+
+    def delete_allowed(self, *args, **kwargs):
+        return (
+            user_has_groups(self.delete_groups) or \
+            user_has_groups(self.admin_groups)
+        )
+
+    # Not part of RAMLResource API
+    def view_allowed(self, *args, **kwargs):
+        return (
+            user_has_groups(self.view_groups) or \
+            user_has_groups(self.admin_groups)
+        )

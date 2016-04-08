@@ -64,17 +64,17 @@ class RAMLResource:
             collecion_name = self.name + "_collection"
         if collection_items_name is None:
             collection_items_name = self.name + "_item"
-        flask_app.add_url_rule(self.path, collecion_name, self.collection_endpoint)
-        flask_app.add_url_rule(self.id_path, collection_items_name, self.collection_items_endpoint)
+        flask_app.add_url_rule(self.path, collecion_name, self._collection_endpoint)
+        flask_app.add_url_rule(self.id_path, collection_items_name, self._collection_items_endpoint)
 
-    def collection_endpoint(self):
+    def _collection_endpoint(self):
         if request.method == "POST":
             return self.create_view()
         elif request.method == "GET":
             return self.list_view()
         abort(405)
 
-    def collection_items_endpoint(self, document_id):
+    def _collection_items_endpoint(self, document_id):
         if request.method == "POST":
             return self.update_view(document_id)
         elif request.method == "GET":
@@ -83,23 +83,38 @@ class RAMLResource:
             return self.delete_view(document_id)
         abort(405)
 
-    def create_view(self):
+    def create_view(self, document):
+        return self.mongo_collection.insert_one(document)
+
+    def _create_view(self):
         request_dict = self.get_request_json(schema=self.new_item_schema)
         document = request_dict["item"]
-        result = self.mongo_collection.insert_one(document)
+        if not self.create_allowed(document):
+            abort(401)
+            return
+        result = self.create_view(document)
         response_dict = document
         response_dict["id"] = str(result.inserted_id)
         self.set_response_json({"item":response_dict})
+
+    def create_allowed(self, document):
+        return True
 
     def list_view(self):
         find_cursor = self.mongo_collection.find()
         return find_cursor
 
     def _list_view(self):
+        if not self.list_allowed():
+            abort(401)
+            return
         page, per_page, sort_by, order, order_arg = self.get_pagination_args()
         find_cursor = self.list_view()
         page_wrapper = self.get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg)
         self.set_response_json(page_wrapper)
+
+    def list_allowed(self):
+        return True
 
     def get_pagination_args(self, max_per_page=100):
         page = request.args.get("page", 1)
@@ -139,7 +154,13 @@ class RAMLResource:
 
     def item_view(self, document_id):
         object_id = ObjectId(document_id)
-        document = self.find_one_or_404({"_id":object_id})
+        self.find_one_or_404({"_id":object_id})
+
+    def _item_view(self, document_id):
+        if not self.item_view_allowed(document_id):
+            abort(401)
+            return
+        document = self.item_view(document_id)
         if document is None:
             response.status = 404
             return
@@ -147,25 +168,45 @@ class RAMLResource:
         del document["_id"]
         self.set_response_json({"item":document})
 
-    def update_view(self, document_id):
+    def item_view_allowed(self, document_id):
+        return True
+
+    def update_view(self, document, request_dict):
+        document.update(request_dict["item"])
+
+    def _update_view(self, document_id):
         object_id = ObjectId(document_id)
         request_dict = self.get_request_json(schema=self.update_item_schema)
-        document = self.find_one_or_404({"_id":object_id})
-        document.update(request_dict["item"])
+        document = self.item_view(document_id)
+        if not self.update_allowed(request_dict, document):
+            abort(401)
+            return
+        document = self.update_view(document, request_dict)
         del document["id"]
-
         document["_id"] = object_id
         self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
         document["id"] = document_id
         del document["_id"]
         self.set_response_json({"item":document})
 
+    def update_allowed(self, request_dict, document):
+        return True
+
     def delete_view(self, document_id):
+        if not self.delete_allowed(document_id):
+            abort(401)
+            return
         object_id = ObjectId(document_id)
         document = self.mongo_collection.find_one_and_delete({"_id":object_id})
         if not document:
             abort(404)
         response.status = 204
+
+    def _delete_view(self, document_id):
+        self.delete_view(document_id)
+
+    def delete_allowed(self, document_id):
+        return True
 
     def find_one_or_404(self, query):
         document = self.mongo_collection.find_one(query)
