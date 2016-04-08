@@ -1,9 +1,12 @@
 import os.path
 
+from bson.objectid import ObjectId
 from default_logger import get_default_logger
-from flask import request
+from flask import request, response
 import json
 import jsonschema
+import math
+import pymongo
 import yaml
 
 class RAMLResource:
@@ -17,7 +20,6 @@ class RAMLResource:
     def parse_raml(self):
         if "collection" not in self.raml["type"]:
             raise NotImplementedError("Only support collections")
-        json_schema_string = self.raml["schema"]
         self.new_item_schema = json.loads(self.raml["type"]["collection"]["newItemSchema"])
 
         child_paths = [key for key in list(self.raml.keys()) if key.startswith("/")]
@@ -34,11 +36,17 @@ class RAMLResource:
         self.update_item_schema = json.loads(self.raml[child_path]["type"]["collection"]["updateItemSchema"])
         self.logger.info("Loaded {0}".format(self.path))
 
-    def init_app(self, app):
-        app.
+    def get_request_json(self, schema=None):
+        request_dict = request.json()
+        if schema is not None:
+            jsonschema.validate(request_dict, schema)
+        return request_dict
 
-    def validate_request(self):
-        jsonschema.validate(request_data, self.json_schema)
+
+    def set_json_response(self, response_dict, status=200):
+        response.data = json.dumps(response_dict)
+        response.mimetype = "application/json"
+        response.status = 200
 
     def list_view(self):
         page = request.args.get("page", 1)
@@ -51,8 +59,8 @@ class RAMLResource:
             sort_by = "_id"
 
         # order values based on backbone-paginator
-        order = request.args.get("order", 1)
-        if order == 1:
+        order_arg = request.args.get("order", 1)
+        if order_arg == 1:
             order = pymongo.DESCENDING
         else:
             order = pymongo.ASCENDING
@@ -65,21 +73,50 @@ class RAMLResource:
         page_wrapper["total_pages"] = int(math.ceil(total_entries / float(page_wrapper["per_page"])))
         page_wrapper["total_entries"] = total_entries
         page_wrapper["sort_by"] = sort_by
-        page_wrapper["order"] = int(params.get("order", 1))
+        page_wrapper["order"] = order_arg
 
         if page_wrapper["page"] > page_wrapper["total_pages"] or page_wrapper["page"] < 1:
-            if queryset_length != 0 or page_wrapper["page"] != 1:
+            if total_entries != 0 or page_wrapper["page"] != 1:
                 raise ValueError("invalid page number: {0]".format(page_wrapper["page"]))
-
-        end = page_wrapper["page"] * page_wrapper["per_page"]
-        start = end - page_wrapper["per_page"]
-        if end > queryset_length:
-            end = queryset_length
 
         items = list(find_cursor.sort(sort_by, order).skip(per_page*(page-1)).limit(per_page))
         page_wrapper["items"] = items
-        response.json = page_wrapper
+        self.set_json_response(page_wrapper)
+    
 
+    def create_view(self):
+        request_dict = self.get_request_json(schema=self.new_item_schema)
+        document = request_dict["item"]
+        result = self.mongo_collection.insert_one(document)
+        response_dict = document
+        response_dict["id"] = str(result.inserted_id)
+        self.set_json_response({"item":response_dict})
+
+    def get_view(self, document_id):
+        result = self.mongo_collection.find_one({"_id":ObjectId(document_id)})
+        if result is None:
+            response.status = 404
+            return
+        result["id"] = str(result["_id"])
+        del result["_id"]
+        self.set_json_response({"item":result})
+
+    def update_view(self, document_id):
+        object_id = ObjectId(document_id)
+        request_dict = self.get_request_json(schema=self.update_item_schema)
+        document = self.mongo_collection.find_one({"_id":object_id})
+        if document is None:
+            response.status = 404
+            return
+
+        document.update(request_dict["item"])
+        del document["id"]
+
+        document["_id"] = object_id
+        self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
+        document["id"] = document_id
+        del document["_id"]
+        self.set_json_response({"item":document})
 
 
 class RAMLSchemaExtension:
@@ -108,6 +145,3 @@ class RAMLSchemaExtension:
                 path = "/" + key
                 resources.append(RAMLResource(path, raml, self.logger))
         return resources
-
-    def init_app(self, app):
-        for resource in self.resources:
