@@ -160,11 +160,13 @@ class RAMLResource:
         return document
 
 class RAMLSchemaExtension:
-    def __init__(self, resources_dir, logger=None):
+    def __init__(self, resources_dir, mongo_client, database_name, logger=None):
+        self.resources_dir = resources_dir
+        self.mongo_client = mongo_client
+        self.database_name = database_name
         if logger is None:
             logger = get_default_logger("ramlschema")
         self.logger = logger
-        self.resources_dir = resources_dir
         self.resources = self.load_resources_from_dir(resources_dir)
 
     def load_resources_from_dir(self, resources_dir):
@@ -183,5 +185,10 @@ class RAMLSchemaExtension:
                 self.logger.info("Loading {0}".format(file_name))
                 raml = yaml.loads(file_handle.read())
                 path = "/" + key
-                resources.append(RAMLResource(path, raml, self.logger))
+                resources.append(RAMLResource(path, key, raml, self.logger, self.mongo_client, self.database_name))
         return resources
+
+    def init_app(self, flask_app):
+        flask_app.ramlschema = self
+        for resource in self.resources:
+            resource.init_app(flask_app)
