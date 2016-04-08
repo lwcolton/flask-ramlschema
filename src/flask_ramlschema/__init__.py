@@ -10,10 +10,10 @@ import pymongo
 import yaml
 
 class RAMLResource:
-    def __init__(self, path, name, raml, logger, mongo_client, database_name, collection_name=None):
+    def __init__(self, path, raml, logger, mongo_client, database_name, collection_name=None):
         self.path = path
         self.id_path = None
-        self.name = name
+        self.name = self.get_name(path)
         self.raml = raml
         self.logger = logger
         self.mongo_client = mongo_client
@@ -25,6 +25,12 @@ class RAMLResource:
     @property
     def mongo_collection(self):
         return self.mongo_client[self.database_name][self.collection_name]
+
+    def get_name(self, path):
+        path_parts = path.split("/")
+        if not path_parts[0]:
+            path_parts = path_parts[1:]
+        return path_parts[1]
 
     def parse_raml(self):
         if "collection" not in self.raml["type"]:
@@ -160,35 +166,21 @@ class RAMLResource:
         return document
 
 class RAMLSchemaExtension:
-    def __init__(self, resources_dir, mongo_client, database_name, logger=None):
-        self.resources_dir = resources_dir
+    def __init__(self, mongo_client, database_name, raml_directory=None, logger=None):
         self.mongo_client = mongo_client
         self.database_name = database_name
+        self.raml_directory = raml_directory
         if logger is None:
             logger = get_default_logger("ramlschema")
         self.logger = logger
-        self.resources = self.load_resources_from_dir(resources_dir)
+        self.resources = {}
 
-    def load_resources_from_dir(self, resources_dir):
-        self.logger.info("Loading RAML resources from {0}".format(resources_dir))
-        resources = []
-        for file_name in os.listdir(resources_dir):
-            key = file_name.split('.')[0]
-            file_path = os.path.join(resources_dir, file_name)
-            if os.path.isdir(file_path):
-                self.logger.info("Skipping directory: {0}".format(file_name))
-                continue
-            elif not file_path.endswith(".raml"):
-                self.logger.info("Skipping file without .raml extension: {0}".format(file_name))
-                continue
-            with open(file_path) as file_handle:
-                self.logger.info("Loading {0}".format(file_name))
-                raml = yaml.loads(file_handle.read())
-                path = "/" + key
-                resources.append(RAMLResource(path, key, raml, self.logger, self.mongo_client, self.database_name))
-        return resources
-
-    def init_app(self, flask_app):
-        flask_app.ramlschema = self
-        for resource in self.resources:
-            resource.init_app(flask_app)
+    def add_resource(self, flask_app, path, raml_path, **kwargs):
+        mongo_client = kwargs.pop("mongo_client", self.mongo_client)
+        database_name = kwargs.pop("database_name", self.database_name)
+        with open(raml_path, "r") as raml_handle:
+            raml = yaml.load(raml_handle.read())
+        resource = RAMLResource(path, raml, mongo_client, database_name, **kwargs)
+        resource.init_app(flask_app)
+        self.resources[path] = resource
+        return resource
