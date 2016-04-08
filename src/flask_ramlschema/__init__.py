@@ -178,6 +178,8 @@ class RAMLSchemaExtension:
     def add_resource(self, flask_app, path, raml_path, **kwargs):
         mongo_client = kwargs.pop("mongo_client", self.mongo_client)
         database_name = kwargs.pop("database_name", self.database_name)
+        if self.raml_directory:
+            raml_path = os.path.join(self.raml_directory, raml_path)
         with open(raml_path, "r") as raml_handle:
             raml = yaml.load(raml_handle.read())
         resource = RAMLResource(path, raml, mongo_client, database_name, **kwargs)
