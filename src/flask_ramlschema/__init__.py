@@ -10,12 +10,21 @@ import pymongo
 import yaml
 
 class RAMLResource:
-    def __init__(self, path, raml, logger, mongo_collection):
+    def __init__(self, path, name, raml, logger, mongo_client, database_name, collection_name=None):
         self.path = path
+        self.id_path = None
+        self.name = name
         self.raml = raml
         self.logger = logger
-        self.mongo_collection = mongo_collection
+        self.mongo_client = mongo_client
+        self.database_name = database_name
+        if collection_name is None:
+            collection_name = self.name
         self.parse_raml()
+
+    @property
+    def mongo_collection(self):
+        return self.mongo_client[self.database_name][self.collection_name]
 
     def parse_raml(self):
         if "collection" not in self.raml["type"]:
@@ -42,11 +51,42 @@ class RAMLResource:
             jsonschema.validate(request_dict, schema)
         return request_dict
 
-
-    def set_json_response(self, response_dict, status=200):
+    def set_response_json(self, response_dict, status=200):
         response.data = json.dumps(response_dict)
         response.mimetype = "application/json"
         response.status = 200
+
+    def init_app(self, flask_app, collection_name=None, collection_items_name=None):
+        if collection_name is None:
+            collecion_name = self.name + "_collection"
+        if collection_items_name is None:
+            collection_items_name = self.name + "_item"
+        flask_app.add_url_rule(self.path, collecion_name, self.collection_endpoint)
+        flask_app.add_url_rule(self.path, collection_items_name, self.collection_items_endpoint)
+
+    def collection_endpoint(self):
+        if request.method == "POST":
+            return self.create_view()
+        elif request.method == "GET":
+            return self.list_view()
+        abort(405)
+
+    def collection_items_endpoint(self, document_id):
+        if request.method == "POST":
+            return self.update_view(document_id)
+        elif request.method == "GET":
+            return self.get_view(document_id)
+        elif request.method == "DELETE":
+            return self.delete_view(document_id)
+        abort(405)
+
+    def create_view(self):
+        request_dict = self.get_request_json(schema=self.new_item_schema)
+        document = request_dict["item"]
+        result = self.mongo_collection.insert_one(document)
+        response_dict = document
+        response_dict["id"] = str(result.inserted_id)
+        self.set_response_json({"item":response_dict})
 
     def list_view(self):
         page = request.args.get("page", 1)
@@ -81,16 +121,7 @@ class RAMLResource:
 
         items = list(find_cursor.sort(sort_by, order).skip(per_page*(page-1)).limit(per_page))
         page_wrapper["items"] = items
-        self.set_json_response(page_wrapper)
-    
-
-    def create_view(self):
-        request_dict = self.get_request_json(schema=self.new_item_schema)
-        document = request_dict["item"]
-        result = self.mongo_collection.insert_one(document)
-        response_dict = document
-        response_dict["id"] = str(result.inserted_id)
-        self.set_json_response({"item":response_dict})
+        self.set_response_json(page_wrapper)
 
     def get_view(self, document_id):
         object_id = ObjectId(document_id)
@@ -100,7 +131,7 @@ class RAMLResource:
             return
         document["id"] = document_id
         del document["_id"]
-        self.set_json_response({"item":document})
+        self.set_response_json({"item":document})
 
     def update_view(self, document_id):
         object_id = ObjectId(document_id)
@@ -113,7 +144,7 @@ class RAMLResource:
         self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
         document["id"] = document_id
         del document["_id"]
-        self.set_json_response({"item":document})
+        self.set_response_json({"item":document})
 
     def delete_view(self, document_id):
         object_id = ObjectId(document_id)
