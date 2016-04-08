@@ -2,7 +2,7 @@ import os.path
 
 from bson.objectid import ObjectId
 from default_logger import get_default_logger
-from flask import request, response
+from flask import abort, request, response
 import json
 import jsonschema
 import math
@@ -93,22 +93,19 @@ class RAMLResource:
         self.set_json_response({"item":response_dict})
 
     def get_view(self, document_id):
-        result = self.mongo_collection.find_one({"_id":ObjectId(document_id)})
-        if result is None:
+        object_id = ObjectId(document_id)
+        document = self.find_one_or_404({"_id":object_id})
+        if document is None:
             response.status = 404
             return
-        result["id"] = str(result["_id"])
-        del result["_id"]
-        self.set_json_response({"item":result})
+        document["id"] = document_id
+        del document["_id"]
+        self.set_json_response({"item":document})
 
     def update_view(self, document_id):
         object_id = ObjectId(document_id)
         request_dict = self.get_request_json(schema=self.update_item_schema)
-        document = self.mongo_collection.find_one({"_id":object_id})
-        if document is None:
-            response.status = 404
-            return
-
+        document = self.find_one_or_404({"_id":object_id})
         document.update(request_dict["item"])
         del document["id"]
 
@@ -118,6 +115,18 @@ class RAMLResource:
         del document["_id"]
         self.set_json_response({"item":document})
 
+    def delete_view(self, document_id):
+        object_id = ObjectId(document_id)
+        document = self.mongo_collection.find_one_and_delete({"_id":object_id})
+        if not document:
+            abort(404)
+        response.status = 204
+
+    def find_one_or_404(self, query):
+        document = self.mongo_collection.find_one(query)
+        if not document:
+            abort(404)
+        return document
 
 class RAMLSchemaExtension:
     def __init__(self, resources_dir, logger=None):
