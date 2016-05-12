@@ -14,7 +14,7 @@ class RAMLResource:
             url_path = url_path[:-1]
         self.url_path = url_path
         self.url_path_collection = "{0}/list".format(url_path)
-        self.url_path_item_id = "{0}/items/<item_id>".format(url_path)
+        self.url_path_item_id = "{0}/items/<document_id>".format(url_path)
         self.name = self.get_name(url_path)
         self.logger = logger
         self.mongo_client = mongo_client
@@ -187,7 +187,7 @@ class RAMLResource:
 
     def item_view(self, document_id):
         object_id = ObjectId(document_id)
-        self.find_one_or_404({"_id":object_id})
+        return self.find_one_or_404({"_id":object_id})
 
     def _item_view(self, document_id):
         if not self.item_view_allowed(document_id):
