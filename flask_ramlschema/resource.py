@@ -5,6 +5,7 @@ import json
 import jsonschema
 import math
 import pymongo
+import yaml
 
 class RAMLResource:
     def __init__(self, url_path, collection_raml_path, item_raml_path, 
@@ -19,6 +20,7 @@ class RAMLResource:
         self.database_name = database_name
         if collection_name is None:
             collection_name = self.name
+        self.collection_name = collection_name
         self.parse_raml(collection_raml_path, item_raml_path)
 
     @property
@@ -34,7 +36,8 @@ class RAMLResource:
     def parse_raml(self, collection_raml_path, item_raml_path):
         collection_raml = self.load_raml_file(collection_raml_path)
         item_raml = self.load_raml_file(item_raml_path)
-        collection_s
+        self.parse_raml_collection(collection_raml)
+        self.parse_raml_item(item_raml)
 
     def load_raml_file(self, raml_file_path):
         with open(raml_file_path, "r") as raml_handle:
@@ -82,20 +85,20 @@ class RAMLResource:
     def _collection_endpoint(self):
         if request.method == "POST":
             if self.collection_type != "read-only-collection":
-                return self.create_view()
+                return self._create_view()
         elif request.method == "GET":
-            return self.list_view()
+            return self._list_view()
         abort(405)
 
     def _collection_items_endpoint(self, document_id):
         if request.method == "POST":
             if self.collection_type != "read-only-collection":
-                return self.update_view(document_id)
+                return self._update_view(document_id)
         elif request.method == "GET":
-            return self.item_view(document_id)
+            return self._item_view(document_id)
         elif request.method == "DELETE":
             if self.collection_type != "read-only-collection":
-                return self.delete_view(document_id)
+                return self._delete_view(document_id)
         abort(405)
 
     def create_view(self, document):
