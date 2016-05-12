@@ -7,17 +7,19 @@ import math
 import pymongo
 
 class RAMLResource:
-    def __init__(self, path, raml, logger, mongo_client, database_name, collection_name=None):
-        self.path = path
-        self.id_path = None
-        self.name = self.get_name(path)
-        self.raml = raml
+    def __init__(self, url_path, collection_raml_path, item_raml_path, 
+                 logger, mongo_client, database_name, collection_name=None):
+        if url_path.endswith("/"):
+            url_path = url_path[:-1]
+        self.url_path = url_path
+        self.url_path_item_id = "{0}/<item_id>".format(url_path)
+        self.name = self.get_name(url_path)
         self.logger = logger
         self.mongo_client = mongo_client
         self.database_name = database_name
         if collection_name is None:
             collection_name = self.name
-        self.parse_raml()
+        self.parse_raml(collection_raml_path, item_raml_path)
 
     @property
     def mongo_collection(self):
@@ -29,24 +31,34 @@ class RAMLResource:
             path_parts = path_parts[1:]
         return path_parts[1]
 
-    def parse_raml(self):
-        if "collection" not in self.raml["type"]:
-            raise NotImplementedError("Only support collections")
-        self.new_item_schema = json.loads(self.raml["type"]["collection"]["newItemSchema"])
+    def parse_raml(self, collection_raml_path, item_raml_path):
+        collection_raml = self.load_raml_file(collection_raml_path)
+        item_raml = self.load_raml_file(item_raml_path)
+        collection_s
 
-        child_paths = [key for key in list(self.raml.keys()) if key.startswith("/")]
-        if len(child_paths) > 1:
-            raise NotImplementedError("Only supports one child path")
-        elif len(child_paths) == 0:
-            raise NotImplementedError("Collection must also implement ID based collection-item")
+    def load_raml_file(self, raml_file_path):
+        with open(raml_file_path, "r") as raml_handle:
+            raml = yaml.load(raml_handle.read())
+            return raml
 
-        child_path = child_paths[0]
-        if not child_path.startswith("/{") or not child_path.endswith("}"):
-            raise NotImplementedError("Only supports one sub-path for ID parameter")
-        self.id_param_name = child_path[1:-1]
-        self.id_path = self.path + child_path
-        self.update_item_schema = json.loads(self.raml[child_path]["type"]["collection"]["updateItemSchema"])
-        self.logger.info("Loaded {0}".format(self.path))
+    def parse_raml_collection(self, collection_raml):
+        if "collection" in collection_raml["type"]:
+            self.collection_type = "collection"
+            self.new_item_schema = json.loads(collection_raml["type"][self.collection_type]["newItemSchema"])
+        elif "read-only-collection" in collection_raml["type"]:
+            self.collection_type = "read-only-collection"
+        else:
+            raise ValueError("Must be of type 'collection' or 'read-only-collection")
+        
+
+    def parse_raml_item(self, item_raml):
+        if "collection-item" in item_raml["type"]:
+            self.item_type = "collection-item"
+            self.update_item_schema = json.loads(item_raml["type"][self.item_type]["updateItemSchema"])
+        elif "read-only-collection-item" in item_raml["type"]:
+            self.item_type = "read-only-collection-item"
+        else:
+            raise ValueError("Must be of type 'collection-item' or 'read-only-collection-item'")
 
     def get_request_json(self, schema=None):
         request_dict = request.json()
@@ -64,23 +76,26 @@ class RAMLResource:
             collecion_name = self.name + "_collection"
         if collection_items_name is None:
             collection_items_name = self.name + "_item"
-        flask_app.add_url_rule(self.path, collecion_name, self._collection_endpoint)
-        flask_app.add_url_rule(self.id_path, collection_items_name, self._collection_items_endpoint)
+        flask_app.add_url_rule(self.url_path, collecion_name, self._collection_endpoint)
+        flask_app.add_url_rule(self.url_path_item_id, collection_items_name, self._collection_items_endpoint)
 
     def _collection_endpoint(self):
         if request.method == "POST":
-            return self.create_view()
+            if self.collection_type != "read-only-collection":
+                return self.create_view()
         elif request.method == "GET":
             return self.list_view()
         abort(405)
 
     def _collection_items_endpoint(self, document_id):
         if request.method == "POST":
-            return self.update_view(document_id)
+            if self.collection_type != "read-only-collection":
+                return self.update_view(document_id)
         elif request.method == "GET":
             return self.item_view(document_id)
         elif request.method == "DELETE":
-            return self.delete_view(document_id)
+            if self.collection_type != "read-only-collection":
+                return self.delete_view(document_id)
         abort(405)
 
     def create_view(self, document):
