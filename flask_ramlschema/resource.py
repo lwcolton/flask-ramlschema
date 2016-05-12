@@ -13,8 +13,8 @@ class RAMLResource:
         if url_path.endswith("/"):
             url_path = url_path[:-1]
         self.url_path = url_path
-        self.url_path_collection = "{0}/list".format(url_path)
-        self.url_path_item_id = "{0}/items/<document_id>".format(url_path)
+        self.url_path_collection = self.url_path
+        self.url_path_item_id = "{0}/<document_id>".format(url_path)
         self.name = self.get_name(url_path)
         self.logger = logger
         self.mongo_client = mongo_client
@@ -70,10 +70,8 @@ class RAMLResource:
         else:
             raise ValueError("Must be of type 'collection-item' or 'read-only-collection-item'")
 
-    def get_request_json(self, schema=None):
-        request_dict = request.json()
-        if schema is not None:
-            jsonschema.validate(request_dict, schema)
+    def get_request_json(self):
+        request_dict = json.loads(request.data.decode("utf-8"))
         return request_dict
 
     def set_response_json(self, response, response_dict, status=200):
@@ -87,7 +85,7 @@ class RAMLResource:
         if collection_items_name is None:
             collection_items_name = self.name + "_item"
         self.logger.info("Adding url rule for {0} at {1}".format(collection_name, self.url_path_collection))
-        flask_app.add_url_rule(self.url_path_collection, collecion_name, self._collection_endpoint)
+        flask_app.add_url_rule(self.url_path_collection, collecion_name, self._collection_endpoint, methods=["GET", "POST"])
         self.logger.info("Adding url rule for {0} at {1}".format(collection_items_name, self.url_path_item_id))
         flask_app.add_url_rule(self.url_path_item_id, collection_items_name, self._collection_items_endpoint)
 
@@ -114,8 +112,9 @@ class RAMLResource:
         return self.mongo_collection.insert_one(document)
 
     def _create_view(self):
-        request_dict = self.get_request_json(schema=self.new_item_schema)
+        request_dict = self.get_request_json()
         document = request_dict["item"]
+        jsonschema.validate(document, self.new_item_schema)
         if not self.create_allowed(document):
             abort(401)
             return
@@ -211,8 +210,9 @@ class RAMLResource:
 
     def _update_view(self, document_id):
         object_id = ObjectId(document_id)
-        request_dict = self.get_request_json(schema=self.update_item_schema)
+        request_dict = self.get_request_json()
         document = self.item_view(document_id)
+        jsonschema.validate(document, self.update_item_schema)
         if not self.update_allowed(request_dict, document):
             abort(401)
             return

@@ -35,7 +35,7 @@ class TestExampleApp(TestCase):
             mock_cursor.__iter__ = mock.Mock(return_value=iter(test_list))
             mock_cursor.count = mock.Mock(return_value = len(test_list))
             mock_list_view.return_value = mock_cursor
-            response = self.test_client.get("/cats/list")
+            response = self.test_client.get("/cats")
             response_dict = json.loads(response.data.decode("utf-8"))
             self.assertEquals(response_dict["items"], test_list)
             self.assertEquals(response_dict["total_entries"], len(test_list))
@@ -45,9 +45,26 @@ class TestExampleApp(TestCase):
         test_document = {"_id":test_document_id, "breed":"tabby", "name":"muffins"}
         with mock.patch.object(self.resource, "item_view") as mock_item_view:
             mock_item_view.return_value = test_document
-            response = self.test_client.get("/cats/items/{0}".format(test_document_id))
+            response = self.test_client.get("/cats/{0}".format(test_document_id))
             response_dict = json.loads(response.data.decode("utf-8"))
             self.assertEquals(response_dict["item"], test_document)
+
+    def test_item_create(self):
+        test_document_id = str(uuid.uuid4().hex)
+        test_document = {"breed":"tabby", "name":"muffins"}
+        test_document_with_id = test_document.copy()
+        test_document_with_id["_id"] = test_document_id
+        with mock.patch.object(self.resource, "create_view") as mock_create_view:
+            mongo_result = mock.MagicMock(wraps=test_document)
+            mongo_result.inserted_id = test_document_id
+            mock_create_view.return_value = mongo_result
+            response = self.test_client.post("/cats", data=json.dumps({"item":test_document}))
+            print(response.data)
+            response_dict = json.loads(response.data.decode("utf-8"))
+            test_document["id"] = test_document_id
+            self.assertEquals(response_dict["item"], test_document)
+
+
 
 
 
