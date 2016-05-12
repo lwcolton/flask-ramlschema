@@ -1,3 +1,4 @@
+import json
 import logging
 import os.path
 import sys
@@ -17,4 +18,17 @@ class TestExampleApp(TestCase):
     		collection_raml_file, item_raml_file, "/cats", 
     		logger, mock.MagicMock(), "test_database")
     	flask_app = Flask("test_app")
+    	flask_app.config['TESTING'] = True
+    	test_client = flask_app.test_client()
     	resource.init_app(flask_app)
+    	test_document = {"breed":"tabby", "name":"muffins"}
+    	test_list = [test_document]
+    	with mock.patch.object(resource, "list_view") as mock_list_view:
+    		mock_cursor = mock.MagicMock()
+    		mock_cursor.__iter__ = mock.Mock(return_value=iter(test_list))
+    		mock_cursor.count = mock.Mock(return_value = len(test_list))
+    		mock_list_view.return_value = mock_cursor
+	    	response = test_client.get("/cats/list")
+	    	response_dict = json.loads(response.data.decode("utf-8"))
+	    	self.assertEquals(response_dict["items"], test_list)
+

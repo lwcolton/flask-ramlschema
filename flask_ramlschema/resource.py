@@ -9,18 +9,19 @@ import yaml
 
 class RAMLResource:
     def __init__(self, collection_raml, item_raml, url_path,
-                 logger, mongo_client, database_name, collection_name=None):
+                 logger, mongo_client, database_name, mongo_collection_name=None):
         if url_path.endswith("/"):
             url_path = url_path[:-1]
         self.url_path = url_path
-        self.url_path_item_id = "{0}/<item_id>".format(url_path)
+        self.url_path_collection = "{0}/list".format(url_path)
+        self.url_path_item_id = "{0}/items/<item_id>".format(url_path)
         self.name = self.get_name(url_path)
         self.logger = logger
         self.mongo_client = mongo_client
         self.database_name = database_name
-        if collection_name is None:
-            collection_name = self.name
-        self.collection_name = collection_name
+        if mongo_collection_name is None:
+            mongo_collection_name = self.name
+        self.mongo_collection_name = mongo_collection_name
         self.parse_raml(collection_raml, item_raml)
 
     @classmethod
@@ -32,7 +33,7 @@ class RAMLResource:
 
     @property
     def mongo_collection(self):
-        return self.mongo_client[self.database_name][self.collection_name]
+        return self.mongo_client[self.database_name][self.mongo_collection_name]
 
     def get_name(self, path):
         path_parts = path.split("/")
@@ -78,14 +79,16 @@ class RAMLResource:
     def set_response_json(self, response, response_dict, status=200):
         response.data = json.dumps(response_dict)
         response.mimetype = "application/json"
-        response.status = 200
+        response.status_code = 200
 
     def init_app(self, flask_app, collection_name=None, collection_items_name=None):
         if collection_name is None:
             collecion_name = self.name + "_collection"
         if collection_items_name is None:
             collection_items_name = self.name + "_item"
-        flask_app.add_url_rule(self.url_path, collecion_name, self._collection_endpoint)
+        self.logger.info("Adding url rule for {0} at {1}".format(collection_name, self.url_path_collection))
+        flask_app.add_url_rule(self.url_path_collection, collecion_name, self._collection_endpoint)
+        self.logger.info("Adding url rule for {0} at {1}".format(collection_items_name, self.url_path_item_id))
         flask_app.add_url_rule(self.url_path_item_id, collection_items_name, self._collection_items_endpoint)
 
     def _collection_endpoint(self):
@@ -177,8 +180,10 @@ class RAMLResource:
             if total_entries != 0 or page_wrapper["page"] != 1:
                 raise ValueError("invalid page number: {0]".format(page_wrapper["page"]))
         skip_num = per_page*(page-1)
-        items = list(find_cursor.sort(sort_by, order).skip(skip_num).limit(per_page))
+        find_cursor.sort(sort_by, order).skip(skip_num).limit(per_page)
+        items = list(find_cursor)
         page_wrapper["items"] = items
+        return page_wrapper
 
     def item_view(self, document_id):
         object_id = ObjectId(document_id)
@@ -191,7 +196,7 @@ class RAMLResource:
         document = self.item_view(document_id)
         response = Response()
         if document is None:
-            response.status = 404
+            response.status_code = 404
             return response
         document["id"] = document_id
         del document["_id"]
@@ -236,7 +241,7 @@ class RAMLResource:
     def _delete_view(self, document_id):
         self.delete_view(document_id)
         response = Response()
-        response.status = 204
+        response.status_code = 204
         return response
 
     def delete_allowed(self, document_id):
