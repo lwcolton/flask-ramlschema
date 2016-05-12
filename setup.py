@@ -14,7 +14,7 @@ setup(
     author = "Colton Leekley-Winslow",
     author_email = "colton@hurricanelabs.com",
     packages=find_packages(exclude=['tests']),
-    install_requires = ["flask", "pymongo", "pyyaml"],
+    install_requires = ["flask", "jsonschema", "pymongo", "pyyaml"],
 )
 
 

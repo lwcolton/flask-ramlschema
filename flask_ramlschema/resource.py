@@ -1,6 +1,6 @@
 from bson.objectid import ObjectId
 
-from flask import abort, request, response
+from flask import abort, request, Response
 import json
 import jsonschema
 import math
@@ -8,7 +8,7 @@ import pymongo
 import yaml
 
 class RAMLResource:
-    def __init__(self, url_path, collection_raml_path, item_raml_path, 
+    def __init__(self, collection_raml, item_raml, url_path,
                  logger, mongo_client, database_name, collection_name=None):
         if url_path.endswith("/"):
             url_path = url_path[:-1]
@@ -21,7 +21,14 @@ class RAMLResource:
         if collection_name is None:
             collection_name = self.name
         self.collection_name = collection_name
-        self.parse_raml(collection_raml_path, item_raml_path)
+        self.parse_raml(collection_raml, item_raml)
+
+    @classmethod
+    def from_files(cls, collection_raml_path, item_raml_path, *args, **kwargs):
+        collection_raml = cls.load_raml_file(collection_raml_path)
+        item_raml = cls.load_raml_file(item_raml_path)
+        resource = cls(collection_raml, item_raml, *args, **kwargs)
+        return resource
 
     @property
     def mongo_collection(self):
@@ -31,15 +38,14 @@ class RAMLResource:
         path_parts = path.split("/")
         if not path_parts[0]:
             path_parts = path_parts[1:]
-        return path_parts[1]
+        return path_parts[0]
 
-    def parse_raml(self, collection_raml_path, item_raml_path):
-        collection_raml = self.load_raml_file(collection_raml_path)
-        item_raml = self.load_raml_file(item_raml_path)
+    def parse_raml(self, collection_raml, item_raml):
         self.parse_raml_collection(collection_raml)
         self.parse_raml_item(item_raml)
 
-    def load_raml_file(self, raml_file_path):
+    @classmethod
+    def load_raml_file(cls, raml_file_path):
         with open(raml_file_path, "r") as raml_handle:
             raml = yaml.load(raml_handle.read())
             return raml
@@ -69,7 +75,7 @@ class RAMLResource:
             jsonschema.validate(request_dict, schema)
         return request_dict
 
-    def set_response_json(self, response_dict, status=200):
+    def set_response_json(self, response, response_dict, status=200):
         response.data = json.dumps(response_dict)
         response.mimetype = "application/json"
         response.status = 200
@@ -113,7 +119,9 @@ class RAMLResource:
         result = self.create_view(document)
         response_dict = document
         response_dict["id"] = str(result.inserted_id)
-        self.set_response_json({"item":response_dict})
+        response = Response()
+        self.set_response_json(response, {"item":response_dict})
+        return response
 
     def create_allowed(self, document):
         return True
@@ -129,7 +137,9 @@ class RAMLResource:
         page, per_page, sort_by, order, order_arg = self.get_pagination_args()
         find_cursor = self.list_view()
         page_wrapper = self.get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg)
-        self.set_response_json(page_wrapper)
+        response = Response()
+        self.set_response_json(response, page_wrapper)
+        return response
 
     def list_allowed(self):
         return True
@@ -179,12 +189,14 @@ class RAMLResource:
             abort(401)
             return
         document = self.item_view(document_id)
+        response = Response()
         if document is None:
             response.status = 404
-            return
+            return response
         document["id"] = document_id
         del document["_id"]
-        self.set_response_json({"item":document})
+        self.set_response_json(response, {"item":document})
+        return response
 
     def item_view_allowed(self, document_id):
         return True
@@ -205,7 +217,9 @@ class RAMLResource:
         self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
         document["id"] = document_id
         del document["_id"]
-        self.set_response_json({"item":document})
+        response = Response()
+        self.set_response_json(response, {"item":document})
+        return response
 
     def update_allowed(self, request_dict, document):
         return True
@@ -218,10 +232,12 @@ class RAMLResource:
         document = self.mongo_collection.find_one_and_delete({"_id":object_id})
         if not document:
             abort(404)
-        response.status = 204
 
     def _delete_view(self, document_id):
         self.delete_view(document_id)
+        response = Response()
+        response.status = 204
+        return response
 
     def delete_allowed(self, document_id):
         return True

@@ -1,0 +1,25 @@
+type:
+  collection-item:
+    exampleItem: |
+      {
+        "id":"507f1f77bcd86cd712439057",
+        "name":"muffins",
+        "breed":"tabby"
+      }
+    exampleUpdateItem: |
+      {
+        "name":"muffins"
+      }
+    updateItemSchema: |
+      {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
