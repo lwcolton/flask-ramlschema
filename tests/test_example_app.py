@@ -74,10 +74,14 @@ class TestExampleApp(TestCase):
         self.resource.mongo_collection = mock_mongo_collection
         response = self.test_client.post("/cats/{0}".format(test_document_id), data=json.dumps({"item":{"name":"scone"}}))
         mock_mongo_collection.find_one_and_replace.assert_called_once_with({"_id":ObjectId(test_document_id)}, update_document)
+        self.assertEquals(response.status_code, 204)
 
-
-
-
-
+    def test_item_delete(self):
+        test_document_id = "827f1f77bcd86cd712439045"
+        mock_mongo_collection = mock.MagicMock()
+        self.resource.mongo_collection = mock_mongo_collection
+        response = self.test_client.delete("/cats/{0}".format(test_document_id))
+        mock_mongo_collection.find_one_and_delete.assert_called_once_with({"_id":ObjectId(test_document_id)})
+        self.assertEquals(response.status_code, 204)
 
 

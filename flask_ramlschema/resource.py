@@ -227,7 +227,7 @@ class RAMLResource:
         document = self.update_view(update_document, existing_document)
         self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
         response = Response()
-        response.status_code = 200
+        response.status_code = 204
         return response
 
     def update_allowed(self, update_document, existing_document):
