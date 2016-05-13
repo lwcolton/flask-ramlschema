@@ -22,6 +22,7 @@ class RAMLResource:
         if mongo_collection_name is None:
             mongo_collection_name = self.name
         self.mongo_collection_name = mongo_collection_name
+        self.mongo_collection = self.mongo_client[self.database_name][self.mongo_collection_name]
         self.parse_raml(collection_raml, item_raml)
 
     @classmethod
@@ -30,10 +31,6 @@ class RAMLResource:
         item_raml = cls.load_raml_file(item_raml_path)
         resource = cls(collection_raml, item_raml, *args, **kwargs)
         return resource
-
-    @property
-    def mongo_collection(self):
-        return self.mongo_client[self.database_name][self.mongo_collection_name]
 
     def get_name(self, path):
         path_parts = path.split("/")
@@ -85,9 +82,17 @@ class RAMLResource:
         if collection_items_name is None:
             collection_items_name = self.name + "_item"
         self.logger.info("Adding url rule for {0} at {1}".format(collection_name, self.url_path_collection))
-        flask_app.add_url_rule(self.url_path_collection, collecion_name, self._collection_endpoint, methods=["GET", "POST"])
+        flask_app.add_url_rule(
+            self.url_path_collection,
+            collecion_name, 
+            self._collection_endpoint, 
+            methods=["GET", "POST"])
         self.logger.info("Adding url rule for {0} at {1}".format(collection_items_name, self.url_path_item_id))
-        flask_app.add_url_rule(self.url_path_item_id, collection_items_name, self._collection_items_endpoint)
+        flask_app.add_url_rule(
+            self.url_path_item_id, 
+            collection_items_name, 
+            self._collection_items_endpoint, 
+            methods=["GET", "POST", "DELETE"])
 
     def _collection_endpoint(self):
         if request.method == "POST":
@@ -205,28 +210,27 @@ class RAMLResource:
     def item_view_allowed(self, document_id):
         return True
 
-    def update_view(self, document, request_dict):
-        document.update(request_dict["item"])
+    def update_view(self, update_document, existing_document):
+        new_document = existing_document.copy()
+        new_document.update(update_document)
+        return new_document
 
     def _update_view(self, document_id):
         object_id = ObjectId(document_id)
+        existing_document = self.find_one_or_404({"_id":object_id})
         request_dict = self.get_request_json()
-        document = self.item_view(document_id)
-        jsonschema.validate(document, self.update_item_schema)
-        if not self.update_allowed(request_dict, document):
+        update_document = request_dict["item"]
+        jsonschema.validate(update_document, self.update_item_schema)
+        if not self.update_allowed(update_document, existing_document):
             abort(401)
             return
-        document = self.update_view(document, request_dict)
-        del document["id"]
-        document["_id"] = object_id
+        document = self.update_view(update_document, existing_document)
         self.mongo_collection.find_one_and_replace({"_id":object_id}, document)
-        document["id"] = document_id
-        del document["_id"]
         response = Response()
-        self.set_response_json(response, {"item":document})
+        response.status_code = 200
         return response
 
-    def update_allowed(self, request_dict, document):
+    def update_allowed(self, update_document, existing_document):
         return True
 
     def delete_view(self, document_id):

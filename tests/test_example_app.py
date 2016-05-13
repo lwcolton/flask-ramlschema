@@ -5,6 +5,7 @@ import sys
 from unittest import TestCase, mock
 import uuid
 
+from bson.objectid import ObjectId
 from flask import Flask
 from flask.ext.ramlschema.resource import RAMLResource
 
@@ -15,9 +16,10 @@ class TestExampleApp(TestCase):
         tests_dir = os.path.dirname(sys.modules[__name__].__file__)
         collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-collection.raml"))
         item_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-item.raml"))
+        self.mongo_client = mock.MagicMock()
         self.resource = RAMLResource.from_files(
             collection_raml_file, item_raml_file, "/cats", 
-            logger, mock.MagicMock(), "test_database")
+            logger, self.mongo_client, "test_database")
         self.flask_app = Flask("test_app")
         self.flask_app.config['TESTING'] = True
         self.test_client = self.flask_app.test_client()
@@ -59,11 +61,19 @@ class TestExampleApp(TestCase):
             mongo_result.inserted_id = test_document_id
             mock_create_view.return_value = mongo_result
             response = self.test_client.post("/cats", data=json.dumps({"item":test_document}))
-            print(response.data)
             response_dict = json.loads(response.data.decode("utf-8"))
             test_document["id"] = test_document_id
             self.assertEquals(response_dict["item"], test_document)
 
+    def test_item_update(self):
+        test_document_id = "827f1f77bcd86cd712439045"
+        existing_document = {"_id":ObjectId(test_document_id), "breed":"tabby", "name":"muffins"}
+        update_document = {"_id":ObjectId(test_document_id), "breed":"tabby", "name":"scone"}
+        mock_mongo_collection = mock.MagicMock()
+        mock_mongo_collection.find_one.return_value = existing_document
+        self.resource.mongo_collection = mock_mongo_collection
+        response = self.test_client.post("/cats/{0}".format(test_document_id), data=json.dumps({"item":{"name":"scone"}}))
+        mock_mongo_collection.find_one_and_replace.assert_called_once_with({"_id":ObjectId(test_document_id)}, update_document)
 
 
 
