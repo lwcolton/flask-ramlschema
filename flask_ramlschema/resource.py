@@ -126,10 +126,10 @@ class RAMLResource:
             abort(401)
             return
         result = self.create_view(document)
-        response_dict = document
-        response_dict["id"] = str(result.inserted_id)
+        document["id"] = str(document["_id"])
+        del document["_id"]
         response = Response()
-        self.set_response_json(response, {"item":response_dict})
+        self.set_response_json(response, {"item":document})
         return response
 
     def create_allowed(self, document):

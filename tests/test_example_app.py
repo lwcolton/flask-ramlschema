@@ -62,10 +62,12 @@ class TestExampleApp(TestCase):
     def test_item_create(self):
         test_document_id = ObjectId()
         test_document = {"breed":"tabby", "name":"muffins"}
+        def add_doc_id(document_to_create):
+            document_to_create["_id"] = test_document_id
         result_document = copy.deepcopy(test_document)
         result_document["id"] = str(test_document_id)
-        with mock.patch.object(self.resource, "create_view") as mock_create_view:
-            mongo_result = mock.MagicMock(wraps=test_document)
+        with mock.patch.object(self.resource, "create_view", side_effect=add_doc_id) as mock_create_view:
+            mongo_result = mock.MagicMock()
             mongo_result.inserted_id = test_document_id
             mock_create_view.return_value = mongo_result
             response = self.test_client.post("/cats", data=json.dumps({"item":test_document}))
