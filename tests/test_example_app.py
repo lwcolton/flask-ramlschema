@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os.path
@@ -29,9 +30,13 @@ class TestExampleApp(TestCase):
         mock.patch.stopall()
 
     def test_list(self):
-        test_document_id = str(uuid.uuid4().hex)
+        test_document_id = ObjectId()
         test_document = {"_id":test_document_id, "breed":"tabby", "name":"muffins"}
+        test_result_document = copy.deepcopy(test_document)
+        test_result_document["id"] = str(test_result_document["_id"])
+        del test_result_document["_id"]
         test_list = [test_document]
+        test_result_list = [test_result_document]
         with mock.patch.object(self.resource, "list_view") as mock_list_view:
             mock_cursor = mock.MagicMock()
             mock_cursor.__iter__ = mock.Mock(return_value=iter(test_list))
@@ -39,8 +44,8 @@ class TestExampleApp(TestCase):
             mock_list_view.return_value = mock_cursor
             response = self.test_client.get("/cats")
             response_dict = json.loads(response.data.decode("utf-8"))
-            self.assertEquals(response_dict["items"], test_list)
-            self.assertEquals(response_dict["total_entries"], len(test_list))
+            self.assertEquals(response_dict["items"], test_result_list)
+            self.assertEquals(response_dict["total_entries"], len(test_result_list))
 
     def test_item_get(self):
         test_document_id = str(uuid.uuid4().hex)

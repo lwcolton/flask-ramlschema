@@ -7,6 +7,8 @@ import math
 import pymongo
 import yaml
 
+from .json_encoder import JSONEncoder
+
 class RAMLResource:
     def __init__(self, collection_raml, item_raml, url_path,
                  logger, mongo_client, database_name, mongo_collection_name=None):
@@ -72,7 +74,7 @@ class RAMLResource:
         return request_dict
 
     def set_response_json(self, response, response_dict, status=200):
-        response.data = bson.json_util.dumps(response_dict)
+        response.data = JSONEncoder().encode(response_dict)
         response.mimetype = "application/json"
         response.status_code = 200
 
@@ -186,6 +188,9 @@ class RAMLResource:
         skip_num = per_page*(page-1)
         find_cursor.sort(sort_by, order).skip(skip_num).limit(per_page)
         items = list(find_cursor)
+        for mongo_doc in items:
+            mongo_doc["id"] = mongo_doc["_id"]
+            del mongo_doc["_id"]
         page_wrapper["items"] = items
         return page_wrapper
 
