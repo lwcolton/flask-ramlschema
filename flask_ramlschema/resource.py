@@ -7,8 +7,6 @@ import math
 import pymongo
 import yaml
 
-from .json_encoder import JSONEncoder
-
 class RAMLResource:
     def __init__(self, collection_raml, item_raml, url_path,
                  logger, mongo_client, database_name, mongo_collection_name=None):
