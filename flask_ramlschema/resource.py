@@ -1,11 +1,13 @@
 from bson.objectid import ObjectId
-
+import bson.json_util
 from flask import abort, request, Response
 import json
 import jsonschema
 import math
 import pymongo
 import yaml
+
+from .json_encoder import JSONEncoder
 
 class RAMLResource:
     def __init__(self, collection_raml, item_raml, url_path,
@@ -72,7 +74,7 @@ class RAMLResource:
         return request_dict
 
     def set_response_json(self, response, response_dict, status=200):
-        response.data = json.dumps(response_dict)
+        response.data = bson.json_util.dumps(response_dict)
         response.mimetype = "application/json"
         response.status_code = 200
 
