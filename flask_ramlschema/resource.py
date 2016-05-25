@@ -78,7 +78,7 @@ class RAMLResource:
 
     def init_app(self, flask_app, collection_name=None, collection_items_name=None):
         if collection_name is None:
-            collecion_name = self.name + "_collection"
+            collection_name = self.name + "_collection"
         if collection_items_name is None:
             collection_items_name = self.name + "_item"
         self.logger.info("Adding url rule for {0} at {1}".format(collection_name, self.url_path_collection))
