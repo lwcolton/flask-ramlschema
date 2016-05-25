@@ -84,7 +84,7 @@ class RAMLResource:
         self.logger.info("Adding url rule for {0} at {1}".format(collection_name, self.url_path_collection))
         flask_app.add_url_rule(
             self.url_path_collection,
-            collecion_name, 
+            collection_name, 
             self._collection_endpoint, 
             methods=["GET", "POST"])
         self.logger.info("Adding url rule for {0} at {1}".format(collection_items_name, self.url_path_item_id))
