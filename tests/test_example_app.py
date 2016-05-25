@@ -48,27 +48,29 @@ class TestExampleApp(TestCase):
             self.assertEquals(response_dict["total_entries"], len(test_result_list))
 
     def test_item_get(self):
-        test_document_id = str(uuid.uuid4().hex)
+        test_document_id = ObjectId()
         test_document = {"_id":test_document_id, "breed":"tabby", "name":"muffins"}
+        result_document = copy.deepcopy(test_document)
+        result_document["id"] = str(test_document_id)
+        del result_document["_id"]
         with mock.patch.object(self.resource, "item_view") as mock_item_view:
             mock_item_view.return_value = test_document
             response = self.test_client.get("/cats/{0}".format(test_document_id))
             response_dict = json.loads(response.data.decode("utf-8"))
-            self.assertEquals(response_dict["item"], test_document)
+            self.assertEquals(response_dict["item"], result_document)
 
     def test_item_create(self):
-        test_document_id = str(uuid.uuid4().hex)
+        test_document_id = ObjectId()
         test_document = {"breed":"tabby", "name":"muffins"}
-        test_document_with_id = test_document.copy()
-        test_document_with_id["_id"] = test_document_id
+        result_document = copy.deepcopy(test_document)
+        result_document["id"] = str(test_document_id)
         with mock.patch.object(self.resource, "create_view") as mock_create_view:
             mongo_result = mock.MagicMock(wraps=test_document)
             mongo_result.inserted_id = test_document_id
             mock_create_view.return_value = mongo_result
             response = self.test_client.post("/cats", data=json.dumps({"item":test_document}))
             response_dict = json.loads(response.data.decode("utf-8"))
-            test_document["id"] = test_document_id
-            self.assertEquals(response_dict["item"], test_document)
+            self.assertEquals(response_dict["item"], result_document)
 
     def test_item_update(self):
         test_document_id = "827f1f77bcd86cd712439045"
