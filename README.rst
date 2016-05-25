@@ -2,10 +2,11 @@
 
     from flask.ext.ramlschema import RAMLResource
 
-    collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-collection.raml"))
-    item_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-item.raml"))
-    self.resource = RAMLResource.from_files(
+    collection_raml_file = "cats-collection.raml"
+    item_raml_file = "cats-item.raml"
+    resource = RAMLResource.from_files(
     	collection_raml_file, item_raml_file, "/cats", 
     	logger, self.mongo_client, "test_database"
     	)
-    self.flask_app = Flask("test_app")
+    flask_app = Flask("test_app")
+    resource.init_app(flask_app)
