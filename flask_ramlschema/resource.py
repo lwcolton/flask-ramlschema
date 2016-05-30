@@ -28,10 +28,11 @@ class RAMLResource:
         self.parse_raml(collection_raml, item_raml)
 
     @classmethod
-    def from_files(cls, collection_raml_path, item_raml_path, *args, **kwargs):
+    def from_files(cls, flask_app, collection_raml_path, item_raml_path, *args, **kwargs):
         collection_raml = cls.load_raml_file(collection_raml_path)
         item_raml = cls.load_raml_file(item_raml_path)
         resource = cls(collection_raml, item_raml, *args, **kwargs)
+        resource.init_app(flask_app)
         return resource
 
     def get_name(self, path):
