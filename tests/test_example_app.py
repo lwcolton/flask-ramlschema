@@ -18,13 +18,13 @@ class TestExampleApp(TestCase):
         collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-collection.raml"))
         item_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-item.raml"))
         self.mongo_client = mock.MagicMock()
-        self.resource = RAMLResource.from_files(
-            collection_raml_file, item_raml_file, "/cats", 
-            logger, self.mongo_client, "test_database")
         self.flask_app = Flask("test_app")
         self.flask_app.config['TESTING'] = True
+        self.resource = RAMLResource.from_files(
+            self.flask_app,
+            collection_raml_file, item_raml_file, "/cats", 
+            logger, self.mongo_client, "test_database")
         self.test_client = self.flask_app.test_client()
-        self.resource.init_app(self.flask_app)
 
     def tearDown(self):
         mock.patch.stopall()
