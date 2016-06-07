@@ -155,8 +155,8 @@ class RAMLResource:
         return True
 
     def get_pagination_args(self, max_per_page=100):
-        page = request.args.get("page", 1)
-        per_page = request.args.get("per_page", 25)
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 25))
         if per_page > max_per_page:
             raise ValueError("per_page cannot be greated than 100")
 

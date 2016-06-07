@@ -47,6 +47,27 @@ class TestExampleApp(TestCase):
             self.assertEquals(response_dict["items"], test_result_list)
             self.assertEquals(response_dict["total_entries"], len(test_result_list))
 
+    def test_pagination(self):
+        test_document_id = ObjectId()
+        test_document = {"_id":test_document_id, "breed":"tabby", "name":"muffins"}
+        test_result_document = copy.deepcopy(test_document)
+        test_result_document["id"] = str(test_result_document["_id"])
+        del test_result_document["_id"]
+        test_list = [copy.deepcopy(test_document) for x in range(0,40)]
+        test_result_list = [copy.deepcopy(test_result_document) for x in range(0,40)]
+        with mock.patch.object(self.resource, "list_view") as mock_list_view:
+            mock_cursor = mock.MagicMock()
+            mock_cursor.__iter__ = mock.Mock(return_value=iter(test_list))
+            mock_cursor.count = mock.Mock(return_value = len(test_list))
+            mock_cursor.sort = mock.Mock(return_value=mock_cursor)
+            mock_cursor.limit = mock.Mock(return_value=mock_cursor)
+            mock_cursor.skip = mock.Mock(return_value=mock_cursor)
+            mock_list_view.return_value = mock_cursor
+            response = self.test_client.get("/cats?page=2")
+            response_dict = json.loads(response.data.decode("utf-8"))
+            mock_cursor.limit.assert_called_once_with(25)
+            mock_cursor.skip.assert_called_once_with(25)
+
     def test_item_get(self):
         test_document_id = ObjectId()
         test_document = {"_id":test_document_id, "breed":"tabby", "name":"muffins"}
