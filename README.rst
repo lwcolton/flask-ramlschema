@@ -1,3 +1,6 @@
+.. image:: https://travis-ci.org/lwcolton/flask-ramlschema.svg?branch=master
+    :target: https://travis-ci.org/lwcolton/flask-ramlschema
+
 .. code-block:: python
 
     from flask.ext.ramlschema import RAMLResource
