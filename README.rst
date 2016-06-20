@@ -7,9 +7,9 @@
 
     collection_raml_file = "cats-collection.raml"
     item_raml_file = "cats-item.raml"
+    flask_app = Flask("test_app")
     resource = RAMLResource.from_files(
-    	collection_raml_file, item_raml_file, "/cats", 
+    	flask_app, collection_raml_file, item_raml_file, "/cats", 
     	logger, mongo_client, "test_database"
     	)
-    flask_app = Flask("test_app")
-    resource.init_app(flask_app)
+
