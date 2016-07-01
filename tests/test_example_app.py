@@ -8,7 +8,7 @@ import uuid
 
 from bson.objectid import ObjectId
 from flask import Flask
-from flask.ext.ramlschema.resource import RAMLResource
+from flask_ramlschema.views import RAMLResource
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +18,14 @@ class TestExampleApp(TestCase):
         collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-collection.raml"))
         item_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-item.raml"))
         self.mongo_client = mock.MagicMock()
+        self.mongo_collection = mock.MagicMock()
         self.flask_app = Flask("test_app")
         self.flask_app.config['TESTING'] = True
         self.resource = RAMLResource.from_files(
             self.flask_app,
             collection_raml_file, item_raml_file, "/cats", 
-            logger, self.mongo_client, "test_database")
+            mongo_collection = self.mongo_collection
+            )
         self.test_client = self.flask_app.test_client()
 
     def tearDown(self):
@@ -78,7 +80,7 @@ class TestExampleApp(TestCase):
             mock_item_view.return_value = test_document
             response = self.test_client.get("/cats/{0}".format(test_document_id))
             response_dict = json.loads(response.data.decode("utf-8"))
-            self.assertEquals(response_dict["item"], result_document)
+            self.assertEquals(response_dict, result_document)
 
     def test_item_create(self):
         test_document_id = ObjectId()
@@ -91,27 +93,23 @@ class TestExampleApp(TestCase):
             mongo_result = mock.MagicMock()
             mongo_result.inserted_id = test_document_id
             mock_create_view.return_value = mongo_result
-            response = self.test_client.post("/cats", data=json.dumps({"item":test_document}))
+            response = self.test_client.post("/cats", data=json.dumps(test_document))
             response_dict = json.loads(response.data.decode("utf-8"))
-            self.assertEquals(response_dict["item"], result_document)
+            self.assertEquals(response_dict, result_document)
 
     def test_item_update(self):
         test_document_id = "827f1f77bcd86cd712439045"
         existing_document = {"_id":ObjectId(test_document_id), "breed":"tabby", "name":"muffins"}
         update_document = {"_id":ObjectId(test_document_id), "breed":"tabby", "name":"scone"}
-        mock_mongo_collection = mock.MagicMock()
-        mock_mongo_collection.find_one.return_value = existing_document
-        self.resource.mongo_collection = mock_mongo_collection
-        response = self.test_client.post("/cats/{0}".format(test_document_id), data=json.dumps({"item":{"name":"scone"}}))
-        mock_mongo_collection.find_one_and_replace.assert_called_once_with({"_id":ObjectId(test_document_id)}, update_document)
+        self.mongo_collection.find_one.return_value = existing_document
+        response = self.test_client.post("/cats/{0}".format(test_document_id), data=json.dumps({"name":"scone"}))
+        self.mongo_collection.find_one_and_replace.assert_called_once_with({"_id":ObjectId(test_document_id)}, update_document)
         self.assertEquals(response.status_code, 204)
 
     def test_item_delete(self):
         test_document_id = "827f1f77bcd86cd712439045"
-        mock_mongo_collection = mock.MagicMock()
-        self.resource.mongo_collection = mock_mongo_collection
         response = self.test_client.delete("/cats/{0}".format(test_document_id))
-        mock_mongo_collection.find_one_and_delete.assert_called_once_with({"_id":ObjectId(test_document_id)})
+        self.mongo_collection.find_one_and_delete.assert_called_once_with({"_id":ObjectId(test_document_id)})
         self.assertEquals(response.status_code, 204)
 
 

@@ -167,7 +167,7 @@ class RAMLResource(APIMixin):
 
     def _create_view(self):
         request_dict = self.get_request_json(self.new_item_schema)
-        document = request_dict["item"]
+        document = request_dict
         if not self.create_allowed(document):
             abort(401)
             return
@@ -175,7 +175,7 @@ class RAMLResource(APIMixin):
         document["id"] = str(document["_id"])
         del document["_id"]
         response = Response()
-        self.set_response_json(response, {"item":document})
+        self.set_response_json(response, document)
         return response
 
     def create_allowed(self, document):
@@ -215,7 +215,7 @@ class RAMLResource(APIMixin):
             return response
         document["id"] = document_id
         del document["_id"]
-        self.set_response_json(response, {"item":document})
+        self.set_response_json(response, document)
         return response
 
     def item_view_allowed(self, document_id):
@@ -230,7 +230,7 @@ class RAMLResource(APIMixin):
         object_id = ObjectId(document_id)
         existing_document = self.find_one_or_404({"_id":object_id})
         request_dict = self.get_request_json(self.update_item_schema)
-        update_document = request_dict["item"]
+        update_document = request_dict
         if not self.update_allowed(update_document, existing_document):
             abort(401)
             return
