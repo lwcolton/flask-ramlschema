@@ -1,30 +1,83 @@
+import json
+import math
+
 from bson.objectid import ObjectId
 import bson.json_util
 from flask import abort, request, Response
-import json
+from flask.views import MethodView
 import jsonschema
-import math
 import pymongo
 import yaml
 
+from .errors import ValidationError
 from .json_encoder import JSONEncoder
+from .pagination import get_pagination_args, get_pagination_wrapper
 
-class RAMLResource:
-    def __init__(self, collection_raml, item_raml, url_path,
-                 logger, mongo_client, database_name, mongo_collection_name=None):
+class APIView(MethodView):
+    def __init__(self, url_path,
+             logger=None, mongo_collection=None, mongo_collection_func=None):
         if url_path.endswith("/"):
             url_path = url_path[:-1]
         self.url_path = url_path
+        self.name = self.get_name(url_path)
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        self.logger = logger
+        self._mongo_collection = mongo_collection
+        if mongo_collection_func is not None:
+            self._get_mongo_collection = mongo_collection_func
+
+    def get_name(self, path):
+        path_parts = path.split("/")
+        if not path_parts[0]:
+            path_parts = path_parts[1:]
+        return path_parts[0]
+
+    @property
+    def mongo_collection(self):
+        return self._get_mongo_collection()
+
+    def _get_mongo_collection(self):
+        return self._mongo_collection
+
+    def get_request_json(self, schema):
+        request_body = json.loads(request.data.decode("utf-8"))
+        errors = self.get_request_errors(request_body, schema)
+        if errors:
+            raise ValidationError(errors)
+        return request_body
+
+    def set_response_json(self, response, response_dict, status=200):
+        response.data = JSONEncoder().encode(response_dict)
+        response.mimetype = "application/json"
+        response.status_code = 200
+
+    def get_request_errors(request_body, schema):
+        validator = Draft4Validator(schema)
+        request_errors = []
+        for error in validator.iter_errors(request_body):
+            error_dict = {
+                "message":error.message
+            }
+            request_errors.append(error_dict)
+        return request_errors
+
+    def find_one_or_404(self, query):
+        document = self.mongo_collection.find_one(query)
+        if not document:
+            abort(404)
+        return document
+
+class JSONSchemaView(APIView):
+    def __init__(self, schema, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.schema = schema
+
+class RAMLView(APIView):
+    def __init__(self, collection_raml, item_raml, *args, **kwargs):
+        super().__init__(*args, **)
         self.url_path_collection = self.url_path
         self.url_path_item_id = "{0}/<document_id>".format(url_path)
-        self.name = self.get_name(url_path)
-        self.logger = logger
-        self.mongo_client = mongo_client
-        self.database_name = database_name
-        if mongo_collection_name is None:
-            mongo_collection_name = self.name
-        self.mongo_collection_name = mongo_collection_name
-        self.mongo_collection = self.mongo_client[self.database_name][self.mongo_collection_name]
         self.parse_raml(collection_raml, item_raml)
 
     @classmethod
@@ -34,12 +87,6 @@ class RAMLResource:
         resource = cls(collection_raml, item_raml, *args, **kwargs)
         resource.init_app(flask_app)
         return resource
-
-    def get_name(self, path):
-        path_parts = path.split("/")
-        if not path_parts[0]:
-            path_parts = path_parts[1:]
-        return path_parts[0]
 
     def parse_raml(self, collection_raml, item_raml):
         self.parse_raml_collection(collection_raml)
@@ -69,15 +116,6 @@ class RAMLResource:
             self.item_type = "read-only-collection-item"
         else:
             raise ValueError("Must be of type 'collection-item' or 'read-only-collection-item'")
-
-    def get_request_json(self):
-        request_dict = json.loads(request.data.decode("utf-8"))
-        return request_dict
-
-    def set_response_json(self, response, response_dict, status=200):
-        response.data = JSONEncoder().encode(response_dict)
-        response.mimetype = "application/json"
-        response.status_code = 200
 
     def init_app(self, flask_app, collection_name=None, collection_items_name=None):
         if collection_name is None:
@@ -154,46 +192,6 @@ class RAMLResource:
     def list_allowed(self):
         return True
 
-    def get_pagination_args(self, max_per_page=100):
-        page = int(request.args.get("page", 1))
-        per_page = int(request.args.get("per_page", 25))
-        if per_page > max_per_page:
-            raise ValueError("per_page cannot be greated than 100")
-
-        sort_by = request.args.get("sort_by", "id")
-        if sort_by == "id":
-            sort_by = "_id"
-
-        # order values based on backbone-paginator
-        order_arg = request.args.get("order", 1)
-        if order_arg == 1:
-            order = pymongo.DESCENDING
-        else:
-            order = pymongo.ASCENDING
-
-        return page, per_page, sort_by, order, order_arg
-
-    def get_pagination_wrapper(self, find_cursor, page, per_page, sort_by, order, order_arg):
-        total_entries = find_cursor.count()
-        page_wrapper = {}
-        page_wrapper["page"] = page
-        page_wrapper["per_page"] = per_page
-        page_wrapper["total_pages"] = int(math.ceil(total_entries / float(page_wrapper["per_page"])))
-        page_wrapper["total_entries"] = total_entries
-        page_wrapper["sort_by"] = sort_by
-        page_wrapper["order"] = order_arg
-
-        if page_wrapper["page"] > page_wrapper["total_pages"] or page_wrapper["page"] < 1:
-            if total_entries != 0 or page_wrapper["page"] != 1:
-                raise ValueError("invalid page number: {0]".format(page_wrapper["page"]))
-        skip_num = per_page*(page-1)
-        find_cursor.sort(sort_by, order).skip(skip_num).limit(per_page)
-        items = list(find_cursor)
-        for mongo_doc in items:
-            mongo_doc["id"] = mongo_doc["_id"]
-            del mongo_doc["_id"]
-        page_wrapper["items"] = items
-        return page_wrapper
 
     def item_view(self, document_id):
         object_id = ObjectId(document_id)
@@ -257,8 +255,3 @@ class RAMLResource:
     def delete_allowed(self, document_id):
         return True
 
-    def find_one_or_404(self, query):
-        document = self.mongo_collection.find_one(query)
-        if not document:
-            abort(404)
-        return document
