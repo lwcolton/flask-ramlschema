@@ -1,3 +1,8 @@
+import math
+
+import pymongo
+
+
 def get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg):
     total_entries = find_cursor.count()
     page_wrapper = {}
@@ -20,7 +25,7 @@ def get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_ar
     page_wrapper["items"] = items
     return page_wrapper
 
-def get_pagination_args(max_per_page=100):
+def get_pagination_args(request, max_per_page=100):
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 25))
     if per_page > max_per_page:

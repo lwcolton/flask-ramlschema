@@ -1,11 +1,11 @@
 import json
-import math
+import logging
 
 from bson.objectid import ObjectId
 import bson.json_util
 from flask import abort, request, Response
 from flask.views import MethodView
-import jsonschema
+from jsonschema import Draft4Validator
 import pymongo
 import yaml
 
@@ -13,9 +13,9 @@ from .errors import ValidationError
 from .json_encoder import JSONEncoder
 from .pagination import get_pagination_args, get_pagination_wrapper
 
-class APIView(MethodView):
-    def __init__(self, url_path,
-             logger=None, mongo_collection=None, mongo_collection_func=None):
+class APIMixin:
+    def __init__(self, url_path, logger=None, mongo_collection=None, 
+                 mongo_collection_func=None):
         if url_path.endswith("/"):
             url_path = url_path[:-1]
         self.url_path = url_path
@@ -26,6 +26,8 @@ class APIView(MethodView):
         self._mongo_collection = mongo_collection
         if mongo_collection_func is not None:
             self._get_mongo_collection = mongo_collection_func
+        else:
+            self._get_mongo_collection = self._default_get_mongo_collection
 
     def get_name(self, path):
         path_parts = path.split("/")
@@ -37,7 +39,7 @@ class APIView(MethodView):
     def mongo_collection(self):
         return self._get_mongo_collection()
 
-    def _get_mongo_collection(self):
+    def _default_get_mongo_collection(self):
         return self._mongo_collection
 
     def get_request_json(self, schema):
@@ -52,7 +54,7 @@ class APIView(MethodView):
         response.mimetype = "application/json"
         response.status_code = 200
 
-    def get_request_errors(request_body, schema):
+    def get_request_errors(self, request_body, schema):
         validator = Draft4Validator(schema)
         request_errors = []
         for error in validator.iter_errors(request_body):
@@ -68,16 +70,22 @@ class APIView(MethodView):
             abort(404)
         return document
 
-class JSONSchemaView(APIView):
+class JSONSchemaView(MethodView, APIMixin):
     def __init__(self, schema, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
 
-class RAMLView(APIView):
+    @property
+    def reqeust_body(self):
+        request_body = self.get_request_json(self.schema)
+        return request_body
+
+
+class RAMLResource(APIMixin):
     def __init__(self, collection_raml, item_raml, *args, **kwargs):
-        super().__init__(*args, **)
+        super().__init__(*args, **kwargs)
         self.url_path_collection = self.url_path
-        self.url_path_item_id = "{0}/<document_id>".format(url_path)
+        self.url_path_item_id = "{0}/<document_id>".format(self.url_path)
         self.parse_raml(collection_raml, item_raml)
 
     @classmethod
@@ -158,9 +166,8 @@ class RAMLView(APIView):
         return self.mongo_collection.insert_one(document)
 
     def _create_view(self):
-        request_dict = self.get_request_json()
+        request_dict = self.get_request_json(self.new_item_schema)
         document = request_dict["item"]
-        jsonschema.validate(document, self.new_item_schema)
         if not self.create_allowed(document):
             abort(401)
             return
@@ -182,9 +189,9 @@ class RAMLView(APIView):
         if not self.list_allowed():
             abort(401)
             return
-        page, per_page, sort_by, order, order_arg = self.get_pagination_args()
+        page, per_page, sort_by, order, order_arg = get_pagination_args(request)
         find_cursor = self.list_view()
-        page_wrapper = self.get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg)
+        page_wrapper = get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg)
         response = Response()
         self.set_response_json(response, page_wrapper)
         return response
@@ -222,9 +229,8 @@ class RAMLView(APIView):
     def _update_view(self, document_id):
         object_id = ObjectId(document_id)
         existing_document = self.find_one_or_404({"_id":object_id})
-        request_dict = self.get_request_json()
+        request_dict = self.get_request_json(self.update_item_schema)
         update_document = request_dict["item"]
-        jsonschema.validate(update_document, self.update_item_schema)
         if not self.update_allowed(update_document, existing_document):
             abort(401)
             return
