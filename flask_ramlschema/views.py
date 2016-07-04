@@ -80,11 +80,6 @@ class JSONSchemaView(MethodView, APIMixin):
         request_body = self.get_request_json(self.schema)
         return request_body
 
-
-class CollectionView():
-
-class CollectionItemsView():
-
 class RAMLResource(APIMixin):
     def __init__(self, collection_raml, item_raml, *args, **kwargs):
         super().__init__(*args, **kwargs)
