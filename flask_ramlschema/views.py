@@ -37,9 +37,9 @@ class APIMixin:
 
     @property
     def mongo_collection(self):
-        return self._get_mongo_collection()
+        return self._get_mongo_collection(self.name)
 
-    def _default_get_mongo_collection(self):
+    def _default_get_mongo_collection(self, resource_name):
         return self._mongo_collection
 
     def get_request_json(self, schema):
@@ -80,6 +80,10 @@ class JSONSchemaView(MethodView, APIMixin):
         request_body = self.get_request_json(self.schema)
         return request_body
 
+
+class CollectionView():
+
+class CollectionItemsView():
 
 class RAMLResource(APIMixin):
     def __init__(self, collection_raml, item_raml, *args, **kwargs):
