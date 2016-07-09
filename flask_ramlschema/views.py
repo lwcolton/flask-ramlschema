@@ -38,12 +38,14 @@ class APIView(MethodView):
 
 
 class MongoView(APIView):
-    def __init__(self, *args, mongo_collection=None, 
-                 mongo_collection_func=None, logger=None, **kwargs):
+    def __init__(self, *args, mongo_collection=None,
+                 mongo_collection_func=None, mongo_collection_name=None,
+                 logger=None, **kwargs):
         super().__init__(*args, **kwargs)
         if logger is None:
             logger = logging.getLogger(__name__)
         self.logger = logger
+        self.mongo_collection_name = mongo_collection_name
         self._mongo_collection = mongo_collection
         if mongo_collection_func is not None:
             self._get_mongo_collection = mongo_collection_func
@@ -56,9 +58,9 @@ class MongoView(APIView):
 
     @property
     def mongo_collection(self):
-        return self._get_mongo_collection()
+        return self._get_mongo_collection(self.mongo_collection_name)
 
-    def _default_get_mongo_collection(self, resource_name):
+    def _default_get_mongo_collection(self, mongo_collection_name):
         return self._mongo_collection
 
     def find_one_or_404(self, query):
@@ -94,7 +96,7 @@ class RAMLResource(MongoView):
         collection_endpoint_name = resource_name + "_collection"
         item_endpoint_name = resource_name + "_item"
         url_path_collection = url_path
-        url_path_item = "{0}/<item_id>".format(url_path)
+        url_path_item = "{0}/<string:item_id>".format(url_path)
         self.logger.info("Adding url rule for endpoint {0} at {1}".format(
             collection_endpoint_name, url_path_collection)
             )
@@ -102,6 +104,7 @@ class RAMLResource(MongoView):
             url_path_collection, 
             endpoint=collection_endpoint_name,
             view_func=self.dispatch_request,
+            methods=["GET", "POST"],
             defaults={"item_id":None}
             )
         self.logger.info("Adding url rule for {0} at {1}".format(
@@ -110,7 +113,8 @@ class RAMLResource(MongoView):
         flask_app.add_url_rule(
             url_path_item, 
             endpoint=item_endpoint_name, 
-            view_func=self.dispatch_request
+            view_func=self.dispatch_request,
+            methods=["GET", "POST", "DELETE"]
             )
 
     def parse_raml(self, collection_raml, item_raml):
