@@ -11,7 +11,7 @@ import yaml
 
 from .errors import ValidationError
 from .json_encoder import JSONEncoder
-from .pagination import get_pagination_args, get_pagination_wrapper
+from .pagination import get_page
 
 class APIView(MethodView):
     def get_request_json(self, schema):
@@ -195,11 +195,10 @@ class RAMLResource(MongoView):
         if not self.list_allowed():
             abort(401)
             return
-        page, per_page, sort_by, order, order_arg = get_pagination_args(request)
         find_cursor = self.list_view()
-        page_wrapper = get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg)
+        page = get_page(find_cursor)
         response = Response()
-        self.set_response_json(response, page_wrapper)
+        self.set_response_json(response, page)
         return response
 
     def list_allowed(self):

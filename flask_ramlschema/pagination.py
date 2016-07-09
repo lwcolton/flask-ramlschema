@@ -1,22 +1,29 @@
 import math
 
+from flask import request
 import pymongo
 
 
-def get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_arg):
+def get_page(find_cursor, page_request=None):
+    if page_request is None:
+        page_request = request
+    page_num, per_page, sort_by, order, order_arg = get_pagination_args(page_request)
+    page = create_page(find_cursor, page_num, per_page, sort_by, order, order_arg)
+    return page
+
+def create_page(find_cursor, page_num, per_page, sort_by, order, order_arg):
     total_entries = find_cursor.count()
     page_wrapper = {}
-    page_wrapper["page"] = page
+    page_wrapper["page"] = page_num
     page_wrapper["per_page"] = per_page
     page_wrapper["total_pages"] = int(math.ceil(total_entries / float(page_wrapper["per_page"])))
     page_wrapper["total_entries"] = total_entries
     page_wrapper["sort_by"] = sort_by
     page_wrapper["order"] = order_arg
-
     if page_wrapper["page"] > page_wrapper["total_pages"] or page_wrapper["page"] < 1:
         if total_entries != 0 or page_wrapper["page"] != 1:
             raise ValueError("invalid page number: {0]".format(page_wrapper["page"]))
-    skip_num = per_page*(page-1)
+    skip_num = per_page*(page_num-1)
     find_cursor.sort(sort_by, order).skip(skip_num).limit(per_page)
     items = list(find_cursor)
     for mongo_doc in items:
@@ -26,7 +33,7 @@ def get_pagination_wrapper(find_cursor, page, per_page, sort_by, order, order_ar
     return page_wrapper
 
 def get_pagination_args(request, max_per_page=100):
-    page = int(request.args.get("page", 1))
+    page_num = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 25))
     if per_page > max_per_page:
         raise ValueError("per_page cannot be greated than 100")
@@ -42,4 +49,4 @@ def get_pagination_args(request, max_per_page=100):
     else:
         order = pymongo.ASCENDING
 
-    return page, per_page, sort_by, order, order_arg
+    return page_num, per_page, sort_by, order, order_arg
