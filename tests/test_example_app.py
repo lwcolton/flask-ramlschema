@@ -22,8 +22,8 @@ class TestExampleApp(TestCase):
         self.flask_app = Flask("test_app")
         self.flask_app.config['TESTING'] = True
         self.resource = RAMLResource.from_files(
-            self.flask_app,
-            collection_raml_file, item_raml_file, "/cats", 
+            collection_raml_file, item_raml_file, 
+            url_path="/cats", flask_app=self.flask_app,
             mongo_collection = self.mongo_collection
             )
         self.test_client = self.flask_app.test_client()

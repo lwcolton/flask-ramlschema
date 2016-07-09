@@ -13,46 +13,13 @@ from .errors import ValidationError
 from .json_encoder import JSONEncoder
 from .pagination import get_pagination_args, get_pagination_wrapper
 
-class APIMixin:
-    def __init__(self, url_path, logger=None, mongo_collection=None, 
-                 mongo_collection_func=None):
-        if url_path.endswith("/"):
-            url_path = url_path[:-1]
-        self.url_path = url_path
-        self.name = self.get_name(url_path)
-        if logger is None:
-            logger = logging.getLogger(__name__)
-        self.logger = logger
-        self._mongo_collection = mongo_collection
-        if mongo_collection_func is not None:
-            self._get_mongo_collection = mongo_collection_func
-        else:
-            self._get_mongo_collection = self._default_get_mongo_collection
-
-    def get_name(self, path):
-        path_parts = path.split("/")
-        if not path_parts[0]:
-            path_parts = path_parts[1:]
-        return path_parts[0]
-
-    @property
-    def mongo_collection(self):
-        return self._get_mongo_collection(self.name)
-
-    def _default_get_mongo_collection(self, resource_name):
-        return self._mongo_collection
-
+class APIView(MethodView):
     def get_request_json(self, schema):
         request_body = json.loads(request.data.decode("utf-8"))
         errors = self.get_request_errors(request_body, schema)
         if errors:
             raise ValidationError(errors)
         return request_body
-
-    def set_response_json(self, response, response_dict, status=200):
-        response.data = JSONEncoder().encode(response_dict)
-        response.mimetype = "application/json"
-        response.status_code = 200
 
     def get_request_errors(self, request_body, schema):
         validator = Draft4Validator(schema)
@@ -64,36 +31,87 @@ class APIMixin:
             request_errors.append(error_dict)
         return request_errors
 
+    def set_response_json(self, response, response_dict, status=200):
+        response.data = JSONEncoder().encode(response_dict)
+        response.mimetype = "application/json"
+        response.status_code = 200
+
+
+class MongoView(APIView):
+    def __init__(self, *args, mongo_collection=None, 
+                 mongo_collection_func=None, logger=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        self.logger = logger
+        self._mongo_collection = mongo_collection
+        if mongo_collection_func is not None:
+            self._get_mongo_collection = mongo_collection_func
+        else:
+            if mongo_collection is None:
+                raise ValueError(
+                    "Must specify either mongo_collection or mongo_collection_func"
+                    )
+            self._get_mongo_collection = self._default_get_mongo_collection
+
+    @property
+    def mongo_collection(self):
+        return self._get_mongo_collection()
+
+    def _default_get_mongo_collection(self, resource_name):
+        return self._mongo_collection
+
     def find_one_or_404(self, query):
         document = self.mongo_collection.find_one(query)
         if not document:
             abort(404)
         return document
 
-class JSONSchemaView(MethodView, APIMixin):
-    def __init__(self, schema, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.schema = schema
 
-    @property
-    def reqeust_body(self):
-        request_body = self.get_request_json(self.schema)
-        return request_body
-
-class RAMLResource(APIMixin):
-    def __init__(self, collection_raml, item_raml, *args, **kwargs):
+class RAMLResource(MongoView):
+    def __init__(self, collection_raml, item_raml, *args, 
+                 url_path=None, flask_app=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.url_path_collection = self.url_path
-        self.url_path_item_id = "{0}/<document_id>".format(self.url_path)
         self.parse_raml(collection_raml, item_raml)
+        if url_path:
+            if not flask_app:
+                raise ValueError("If setting url_path must also provide flask_app")
+            self.add_routes(url_path, flask_app)
 
     @classmethod
-    def from_files(cls, flask_app, collection_raml_path, item_raml_path, *args, **kwargs):
+    def from_files(cls, collection_raml_path, item_raml_path, *args, **kwargs):
         collection_raml = cls.load_raml_file(collection_raml_path)
         item_raml = cls.load_raml_file(item_raml_path)
+        # Not using as_view here because it instaniates the class on every request
         resource = cls(collection_raml, item_raml, *args, **kwargs)
-        resource.init_app(flask_app)
         return resource
+
+    def add_routes(self, url_path, flask_app):
+        while url_path.endswith("/"):
+            url_path = url_path[:-1]
+        url_parts = url_path.split("/")
+        resource_name = url_parts[-1]
+        collection_endpoint_name = resource_name + "_collection"
+        item_endpoint_name = resource_name + "_item"
+        url_path_collection = url_path
+        url_path_item = "{0}/<item_id>".format(url_path)
+        self.logger.info("Adding url rule for endpoint {0} at {1}".format(
+            collection_endpoint_name, url_path_collection)
+            )
+        flask_app.add_url_rule(
+            url_path_collection, 
+            endpoint=collection_endpoint_name,
+            view_func=self.dispatch_request,
+            defaults={"item_id":None}
+            )
+        self.logger.info("Adding url rule for {0} at {1}".format(
+            item_endpoint_name, url_path_item)
+            )
+        flask_app.add_url_rule(
+            url_path_item, 
+            endpoint=item_endpoint_name, 
+            view_func=self.dispatch_request
+            )
 
     def parse_raml(self, collection_raml, item_raml):
         self.parse_raml_collection(collection_raml)
@@ -124,42 +142,27 @@ class RAMLResource(APIMixin):
         else:
             raise ValueError("Must be of type 'collection-item' or 'read-only-collection-item'")
 
-    def init_app(self, flask_app, collection_name=None, collection_items_name=None):
-        if collection_name is None:
-            collection_name = self.name + "_collection"
-        if collection_items_name is None:
-            collection_items_name = self.name + "_item"
-        self.logger.info("Adding url rule for {0} at {1}".format(collection_name, self.url_path_collection))
-        flask_app.add_url_rule(
-            self.url_path_collection,
-            collection_name, 
-            self._collection_endpoint, 
-            methods=["GET", "POST"])
-        self.logger.info("Adding url rule for {0} at {1}".format(collection_items_name, self.url_path_item_id))
-        flask_app.add_url_rule(
-            self.url_path_item_id, 
-            collection_items_name, 
-            self._collection_items_endpoint, 
-            methods=["GET", "POST", "DELETE"])
-
-    def _collection_endpoint(self):
-        if request.method == "POST":
-            if self.collection_type != "read-only-collection":
-                return self._create_view()
-        elif request.method == "GET":
+    def get(self, item_id):
+        if item_id is None:
             return self._list_view()
-        abort(405)
+        else:
+            return self._item_view(item_id)
 
-    def _collection_items_endpoint(self, document_id):
-        if request.method == "POST":
-            if self.collection_type != "read-only-collection":
-                return self._update_view(document_id)
-        elif request.method == "GET":
-            return self._item_view(document_id)
-        elif request.method == "DELETE":
-            if self.collection_type != "read-only-collection":
-                return self._delete_view(document_id)
-        abort(405)
+    def post(self, item_id):
+        if self.collection_type == "read-only-collection":
+            abort(405)
+        else:
+            if item_id is None:
+                return self._create_view()
+            else:
+                return self._update_view(item_id)
+
+    def delete(self, item_id):
+        if self.collection_type == "read-only-collection":
+            abort(405)
+        elif item_id is None:
+            abort(404)
+        return self._delete_view(item_id)
 
     def create_view(self, document):
         return self.mongo_collection.insert_one(document)
