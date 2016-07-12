@@ -2,11 +2,8 @@
     :target: https://travis-ci.org/lwcolton/flask-ramlschema
 
 .. code-block:: python
-
-    import logging
-
     from flask import Flask
-    from flask_ramlschema.resource import RAMLResource
+    from flask_ramlschema.views import RAMLResource
     from pymongo.mongo_client import MongoClient
 
     collection_raml_file = "cats-collection.raml"

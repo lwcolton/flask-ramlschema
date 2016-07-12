@@ -31,11 +31,13 @@ class APIView(MethodView):
             request_errors.append(error_dict)
         return request_errors
 
-    def set_response_json(self, response, response_dict, status=200):
-        response.data = JSONEncoder().encode(response_dict)
-        response.mimetype = "application/json"
-        response.status_code = 200
-
+    def json_response(self, response_dict, response_obj=None, status=200):
+        if response_obj is None:
+            response_obj = Response()
+        response_obj.data = JSONEncoder().encode(response_dict)
+        response_obj.mimetype = "application/json"
+        response_obj.status_code = 200
+        return response_obj
 
 class MongoView(APIView):
     def __init__(self, *args, mongo_collection=None,
@@ -180,8 +182,7 @@ class RAMLResource(MongoView):
         result = self.create_view(document)
         document["id"] = str(document["_id"])
         del document["_id"]
-        response = Response()
-        self.set_response_json(response, document)
+        response = self.json_response(document)
         return response
 
     def create_allowed(self, document):
@@ -197,8 +198,7 @@ class RAMLResource(MongoView):
             return
         find_cursor = self.list_view()
         page = get_page(find_cursor)
-        response = Response()
-        self.set_response_json(response, page)
+        response = self.json_response(page)
         return response
 
     def list_allowed(self):
@@ -214,13 +214,11 @@ class RAMLResource(MongoView):
             abort(401)
             return
         document = self.item_view(document_id)
-        response = Response()
         if document is None:
-            response.status_code = 404
-            return response
+            return Response(status=404)
         document["id"] = document_id
         del document["_id"]
-        self.set_response_json(response, document)
+        response = self.json_response(document)
         return response
 
     def item_view_allowed(self, document_id):
