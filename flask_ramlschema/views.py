@@ -9,7 +9,7 @@ from jsonschema import Draft4Validator
 import pymongo
 import yaml
 
-from .errors import ValidationError
+from .errors import ValidationError, register_error_handlers
 from .json_encoder import JSONEncoder
 from .pagination import get_page
 
@@ -81,6 +81,8 @@ class RAMLResource(MongoView):
             if not flask_app:
                 raise ValueError("If setting url_path must also provide flask_app")
             self.add_routes(url_path, flask_app)
+        if flask_app:
+            self.register_error_handlers(flask_app)
 
     @classmethod
     def from_files(cls, collection_raml_path, item_raml_path, *args, **kwargs):
@@ -118,6 +120,9 @@ class RAMLResource(MongoView):
             view_func=self.dispatch_request,
             methods=["GET", "POST", "DELETE"]
             )
+
+    def register_error_handlers(self, flask_app):
+        register_error_handlers(flask_app)
 
     def parse_raml(self, collection_raml, item_raml):
         self.parse_raml_collection(collection_raml)
