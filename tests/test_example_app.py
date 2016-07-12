@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 class TestExampleApp(TestCase):
     def setUp(self):
         tests_dir = os.path.dirname(sys.modules[__name__].__file__)
-        collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-collection.raml"))
-        item_raml_file = os.path.abspath(os.path.join(tests_dir, "../cats-item.raml"))
+        collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../raml/resources/cats-collection.raml"))
+        item_raml_file = os.path.abspath(os.path.join(tests_dir, "../raml/resources/cats-item.raml"))
         self.mongo_client = mock.MagicMock()
         self.mongo_collection = mock.MagicMock()
         self.flask_app = Flask("test_app")
