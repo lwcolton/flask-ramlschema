@@ -1,0 +1,10 @@
+#%RAML 0.8
+title: Cats
+version: 1
+resourceTypes:
+  !include resourceTypes/base.raml
+
+/cats:
+    !include resources/cats-collection.raml
+/cats/{catId}:
+    !include resources/cats-item.raml

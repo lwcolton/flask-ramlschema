@@ -1,0 +1,111 @@
+- collection:
+    description: Collection of available <<resourcePathName>>.
+    get:
+      description: Get a list of <<resourcePathName>>.
+      responses:
+        200:
+          body:
+            application/json:
+              example: |
+                {
+                  "page":1,
+                  "per_page":25,
+                  "total_pages":3,
+                  "total_entries":71,
+                  "sort_by":"id",
+                  "sort_order":1,
+                  "items":<<exampleCollection>>
+                }
+    post:
+      description: Add a new <<resourcePathName|!singularize>>
+      body:
+        application/json:
+          example: <<exampleNewItem>>
+          schema: <<newItemSchema>>
+      responses:
+        200:
+          body:
+            application/json:
+              example: |
+                {
+                  "id":"5785015b8120be4d81730f36",
+                  ...
+                }
+        422:
+          body:
+            application/json:
+              example: |
+                {
+                  "error":"request_validation_failed",
+                  "error_message":"Missing required field"
+                }
+
+- read-only-collection:
+    description: Read-Only Collection of available <<resourcePathName>>.
+    get:
+      description: Get a list of <<resourcePathName>>.
+      responses:
+        200:
+          body:
+            application/json:
+              example: |
+                {
+                  "page":1,
+                  "per_page":25,
+                  "total_pages":3,
+                  "total_entries":71,
+                  "sort_by":"id",
+                  "sort_order":1,
+                  "items":<<exampleCollection>>
+                }
+
+- collection-item:
+    description: Retrieve a single document by <<resourcePathName|!singularize>>
+    get:
+      description: |
+        Get the <<resourcePathName|!singularize>>
+        with <<resourcePathName|!singularize>>Id =
+        {<<resourcePathName|!singularize>>Id}
+      responses:
+        200:
+        404:
+          body:
+            application/json:
+              example: |
+                {"error_message": "<<resourcePathName|!singularize>> not found" }
+    post:
+      description: Update one <<resourcePathName|!singularize>>
+      body:
+        application/json:
+          example: <<exampleUpdateItem>>
+          schema: <<updateItemSchema>>
+      responses:
+        200:
+          body:
+            application/json:
+              example: <<exampleItem>>
+        404:
+        422:
+    delete:
+      description: Delete one <<resourcePathName|!singularize>>
+      responses:
+        204:
+        404:
+
+- read-only-collection-item:
+    description: Retreive a single read-only document by <<resourcePathName|!singularize>>
+    get:
+      description: |
+        Get the <<resourcePathName|!singularize>>
+        with <<resourcePathName|!singularize>>Id =
+        {<<resourcePathName|!singularize>>Id}
+      responses:
+        200:
+          body:
+            application/json:
+              example: <<exampleItem>>
+        404:
+          body:
+            application/json:
+              example: |
+                {"error_message": "<<resourcePathName|!singularize>> not found" }

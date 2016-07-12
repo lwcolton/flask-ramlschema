@@ -1,0 +1,209 @@
+<!DOCTYPE HTML><html><head><title>Cats API documentation</title><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta name="generator" content="https://github.com/kevinrenskers/raml2html 2.4.0"><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.1/styles/default.min.css"><script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script><script type="text/javascript" src="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.1/highlight.min.js"></script><script type="text/javascript">
+      $(document).ready(function() {
+        $('.page-header pre code, .top-resource-description pre code').each(function(i, block) {
+          hljs.highlightBlock(block);
+        });
+
+        $('[data-toggle]').click(function() {
+          var selector = $(this).data('target') + ' pre code';
+          $(selector).each(function(i, block) {
+            hljs.highlightBlock(block);
+          });
+        });
+
+        // open modal on hashes like #_action_get
+        $(window).bind('hashchange', function(e) {
+          var anchor_id = document.location.hash.substr(1); //strip #
+          var element = $('#' + anchor_id);
+
+          // do we have such element + is it a modal?  --> show it
+          if (element.length && element.hasClass('modal')) {
+            element.modal('show');
+          }
+        });
+
+        // execute hashchange on first page load
+        $(window).trigger('hashchange');
+
+        // remove url fragment on modal hide
+        $('.modal').on('hidden.bs.modal', function() {
+          try {
+            if (history && history.replaceState) {
+                history.replaceState({}, '', '#');
+            }
+          } catch(e) {}
+        });
+      });
+    </script><style>
+      .hljs {
+        background: transparent;
+      }
+      .parent {
+        color: #999;
+      }
+      .list-group-item > .badge {
+        float: none;
+        margin-right: 6px;
+      }
+      .panel-title > .methods {
+        float: right;
+      }
+      .badge {
+        border-radius: 0;
+        text-transform: uppercase;
+        width: 70px;
+        font-weight: normal;
+        color: #f3f3f6;
+        line-height: normal;
+      }
+      .badge_get {
+        background-color: #63a8e2;
+      }
+      .badge_post {
+        background-color: #6cbd7d;
+      }
+      .badge_put {
+        background-color: #22bac4;
+      }
+      .badge_delete {
+        background-color: #d26460;
+      }
+      .badge_patch {
+        background-color: #ccc444;
+      }
+      .list-group, .panel-group {
+        margin-bottom: 0;
+      }
+      .panel-group .panel+.panel-white {
+        margin-top: 0;
+      }
+      .panel-group .panel-white {
+        border-bottom: 1px solid #F5F5F5;
+        border-radius: 0;
+      }
+      .panel-white:last-child {
+        border-bottom-color: white;
+        -webkit-box-shadow: none;
+        box-shadow: none;
+      }
+      .panel-white .panel-heading {
+        background: white;
+      }
+      .tab-pane ul {
+        padding-left: 2em;
+      }
+      .tab-pane h2 {
+        font-size: 1.2em;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #ddd;
+      }
+      .tab-pane h3 {
+        font-size: 1.1em;
+      }
+      .tab-content {
+        border-left: 1px solid #ddd;
+        border-right: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+        padding: 10px;
+      }
+      #sidebar {
+        margin-top: 30px;
+        padding-right: 5px;
+        overflow: auto;
+        height: 90%;
+      }
+      .top-resource-description {
+        border-bottom: 1px solid #ddd;
+        background: #fcfcfc;
+        padding: 15px 15px 0 15px;
+        margin: -15px -15px 10px -15px;
+      }
+      .resource-description {
+        border-bottom: 1px solid #fcfcfc;
+        background: #fcfcfc;
+        padding: 15px 15px 0 15px;
+        margin: -15px -15px 10px -15px;
+      }
+      .resource-description p:last-child {
+        margin: 0;
+      }
+      .list-group .badge {
+        float: left;
+      }
+      .method_description {
+        margin-left: 85px;
+      }
+      .method_description p:last-child {
+        margin: 0;
+      }
+      .list-group-item {
+        cursor: pointer;
+      }
+      .list-group-item:hover {
+        background-color: #f5f5f5;
+      }
+    </style></head><body data-spy="scroll" data-target="#sidebar"><div class="container"><div class="row"><div class="col-md-9" role="main"><div class="page-header"><h1>Cats API documentation <small>version 1</small></h1><p></p></div><div class="panel panel-default"><div class="panel-heading"><h3 id="cats" class="panel-title">/cats</h3></div><div class="panel-body"><div class="top-resource-description"><p>Collection of available cats.</p></div><div class="panel-group"><div class="panel panel-white"><div class="panel-heading"><h4 class="panel-title"><a class="collapsed" data-toggle="collapse" href="#panel_cats"><span class="parent"></span>/cats</a> <span class="methods"><a href="#cats_get"><span class="badge badge_get">get</span></a> <a href="#cats_post"><span class="badge badge_post">post</span></a></span></h4></div><div id="panel_cats" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#cats_get'" class="list-group-item"><span class="badge badge_get">get</span><div class="method_description"><p>Get a list of cats.</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#cats_post'" class="list-group-item"><span class="badge badge_post">post</span><div class="method_description"><p>Add a new cat</p></div><div class="clearfix"></div></div></div></div></div><div class="modal fade" tabindex="0" id="cats_get"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_get">get</span> <span class="parent"></span>/cats</h4></div><div class="modal-body"><div class="alert alert-info"><p>Get a list of cats.</p></div><ul class="nav nav-tabs"><li class="active"><a href="#cats_get_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="cats_get_response"><h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{
+  "page":1,
+  "per_page":25,
+  "total_pages":3,
+  "total_entries":71,
+  "sort_by":"id",
+  "sort_order":1,
+  "items":[
+  {
+    "id":"507f1f77bcd86cd712439057",
+    "name":"muffins",
+    "breed":"tabby"
+  }
+]
+
+}
+</code></pre></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="cats_post"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_post">post</span> <span class="parent"></span>/cats</h4></div><div class="modal-body"><div class="alert alert-info"><p>Add a new cat</p></div><ul class="nav nav-tabs"><li class="active"><a href="#cats_post_request" data-toggle="tab">Request</a></li><li><a href="#cats_post_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="cats_post_request"><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Schema</strong>:</p><pre><code>{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "breed": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "breed"
+  ]
+}</code></pre><p><strong>Example</strong>:</p><pre><code>{
+  "name":"muffins",
+  "breed":"tabby"
+}
+</code></pre></div><div class="tab-pane" id="cats_post_response"><h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{
+  "id":"5785015b8120be4d81730f36",
+  ...
+}
+</code></pre><h2>HTTP status code <a href="http://httpstatus.es/422" target="_blank">422</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{
+  "error":"request_validation_failed",
+  "error_message":"Missing required field"
+}
+</code></pre></div></div></div></div></div></div></div></div></div></div><div class="panel panel-default"><div class="panel-heading"><h3 id="cats__catId_" class="panel-title">/cats/{catId}</h3></div><div class="panel-body"><div class="top-resource-description"><p>Retrieve a single document by cat</p></div><div class="panel-group"><div class="panel panel-white"><div class="panel-heading"><h4 class="panel-title"><a class="collapsed" data-toggle="collapse" href="#panel_cats__catId_"><span class="parent"></span>/cats/{catId}</a> <span class="methods"><a href="#cats__catId__get"><span class="badge badge_get">get</span></a> <a href="#cats__catId__post"><span class="badge badge_post">post</span></a> <a href="#cats__catId__delete"><span class="badge badge_delete">delete</span></a></span></h4></div><div id="panel_cats__catId_" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#cats__catId__get'" class="list-group-item"><span class="badge badge_get">get</span><div class="method_description"><p>Get the cat with catId = {catId}</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#cats__catId__post'" class="list-group-item"><span class="badge badge_post">post</span><div class="method_description"><p>Update one cat</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#cats__catId__delete'" class="list-group-item"><span class="badge badge_delete">delete</span><div class="method_description"><p>Delete one cat</p></div><div class="clearfix"></div></div></div></div></div><div class="modal fade" tabindex="0" id="cats__catId__get"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_get">get</span> <span class="parent"></span>/cats/{catId}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Get the cat with catId = {catId}</p></div><ul class="nav nav-tabs"><li class="active"><a href="#cats__catId__get_request" data-toggle="tab">Request</a></li><li><a href="#cats__catId__get_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="cats__catId__get_request"><h3>URI Parameters</h3><ul><li><strong>catId</strong>: <em>required (string)</em></li></ul></div><div class="tab-pane" id="cats__catId__get_response"><h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a></h2><h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{"error_message": "cat not found" }
+</code></pre></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="cats__catId__post"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_post">post</span> <span class="parent"></span>/cats/{catId}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Update one cat</p></div><ul class="nav nav-tabs"><li class="active"><a href="#cats__catId__post_request" data-toggle="tab">Request</a></li><li><a href="#cats__catId__post_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="cats__catId__post_request"><h3>URI Parameters</h3><ul><li><strong>catId</strong>: <em>required (string)</em></li></ul><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Schema</strong>:</p><pre><code>{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
+</code></pre><p><strong>Example</strong>:</p><pre><code>{
+  "name":"muffins"
+}
+</code></pre></div><div class="tab-pane" id="cats__catId__post_response"><h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{
+  "id":"507f1f77bcd86cd712439057",
+  "name":"muffins",
+  "breed":"tabby"
+}
+</code></pre><h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a></h2><h2>HTTP status code <a href="http://httpstatus.es/422" target="_blank">422</a></h2></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="cats__catId__delete"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_delete">delete</span> <span class="parent"></span>/cats/{catId}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Delete one cat</p></div><ul class="nav nav-tabs"><li class="active"><a href="#cats__catId__delete_request" data-toggle="tab">Request</a></li><li><a href="#cats__catId__delete_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="cats__catId__delete_request"><h3>URI Parameters</h3><ul><li><strong>catId</strong>: <em>required (string)</em></li></ul></div><div class="tab-pane" id="cats__catId__delete_response"><h2>HTTP status code <a href="http://httpstatus.es/204" target="_blank">204</a></h2><h2>HTTP status code <a href="http://httpstatus.es/404" target="_blank">404</a></h2></div></div></div></div></div></div></div></div></div></div></div><div class="col-md-3"><div id="sidebar" class="hidden-print affix" role="complementary"><ul class="nav nav-pills nav-stacked"><li><a href="#cats">/cats</a></li><li><a href="#cats__catId_">/cats/{catId}</a></li></ul></div></div></div></div></body></html>
