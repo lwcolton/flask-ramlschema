@@ -14,6 +14,51 @@ from .json_encoder import JSONEncoder
 from .pagination import get_page
 
 class APIView(MethodView):
+    """Provides basic API utilities like validation and json decoding
+
+
+    You can subclass `APIView` to make a basic API endpoint,
+    it inherits from `flask.MethodView <http://flask.pocoo.org/docs/0.11/views/#method-based-dispatching>`_.
+
+    Example:
+    .. code-block:: python
+        from flask import Flask
+        from flask_ramlschema.views import APIView
+        from flask_ramlschema.errors import register_error_handlers
+
+        class MyAPIEndpoint(APIView):
+            post_schema = {
+              "$schema": "http://json-schema.org/draft-04/schema#",
+              "type": "object",
+              "properties": {
+                "myfield": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "myfield"
+              ]
+            }
+
+            def post(self):
+                # Use jsonschema to validate input
+                jsonschema = self.post_schema
+                body = self.get_request_json(self.post_schema)
+
+                #Do something with body data
+                print(body["myfield"])
+
+                #Return API response in JSON
+                return self.json_response({"success":True})
+
+        app = Flask("my_api")
+        register_error_handlers(app)
+        app.add_url_rule("/my-endpoint", view_func=MyAPIEndpoint.as_view())
+
+
+    You can generate jsonschema from example documents using `jsonschema.net <http://jsonschema.net/#/>`.
+
+    """
     def get_request_json(self, schema):
         request_body = json.loads(request.data.decode("utf-8"))
         errors = self.get_request_errors(request_body, schema)

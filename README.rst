@@ -1,7 +1,7 @@
 .. image:: https://travis-ci.org/lwcolton/flask-ramlschema.svg?branch=master
     :target: https://travis-ci.org/lwcolton/flask-ramlschema
 
-Create an API using RAML with JSONSchema
+Create an API using `RAML <http://raml.org/>`_ with JSONSchema
 
 .. code-block:: python
     from flask import Flask
@@ -22,5 +22,6 @@ Create an API using RAML with JSONSchema
         url_path = "/cats", flask_app = flask_app,
         mongo_collection = mongo_client["flask-ramlschema-test"].cats
         )
+
 
 See example_app.py and example-uwsgi.ini 
