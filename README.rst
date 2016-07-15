@@ -4,6 +4,7 @@
 Create an API using `RAML <http://raml.org/>`_ with JSONSchema
 
 .. code-block:: python
+
     from flask import Flask
     from flask_ramlschema.views import RAMLResource
     from flask_ramlschema.errors import register_error_handlers
