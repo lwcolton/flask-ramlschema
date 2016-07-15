@@ -22,6 +22,7 @@ class APIView(MethodView):
 
     Example:
     .. code-block:: python
+
         from flask import Flask
         from flask_ramlschema.views import APIView
         from flask_ramlschema.errors import register_error_handlers
@@ -59,7 +60,16 @@ class APIView(MethodView):
     You can generate jsonschema from example documents using `jsonschema.net <http://jsonschema.net/#/>`.
 
     """
+
     def get_request_json(self, schema):
+        """Reads the request body and decodes it as JSON, validating it against ``schema``.
+
+        :param schema dict: JSONSchema v4 that has been loaded into a python dictionary.
+            This is used to validate the incoming data.  If validation fails, 
+            ``errors.ValidationError`` is raised.  You can use ``errors.register_error_handlers``
+            to register an error handler that will convert ``ValidationError`` instances into
+            JSON responses.
+        """
         request_body = json.loads(request.data.decode("utf-8"))
         errors = self.get_request_errors(request_body, schema)
         if errors:
@@ -77,6 +87,12 @@ class APIView(MethodView):
         return request_errors
 
     def json_response(self, response_dict, response_obj=None, status=200):
+        """Encodes ``response_dict`` as json, returning a response with the body set.
+
+        :param response_dict dict: Dictionary to encode as JSON for response body.
+        :param response_obj flask.Response: (Optional) The response object to use.
+        :param status int: (Optional) Status code of the response.
+        """
         if response_obj is None:
             response_obj = Response()
         response_obj.data = JSONEncoder().encode(response_dict)
@@ -85,6 +101,7 @@ class APIView(MethodView):
         return response_obj
 
 class MongoView(APIView):
+    """Subclass of APIView that stores a connection to mongodb."""
     def __init__(self, *args, mongo_collection=None,
                  mongo_collection_func=None, mongo_collection_name=None,
                  logger=None, **kwargs):
@@ -216,6 +233,20 @@ class RAMLResource(MongoView):
         return self._delete_view(item_id)
 
     def create_view(self, document):
+        """Inserts a document into a collection
+        Called on POST to /<collection>
+        The default implementation calls ``pymongo.Collection.insert_one``
+        To implement custom create behavior, override this method.
+
+        :param document dict: Validated JSON from reqest body.
+
+        ..code-block:: python
+
+            class MyAPIResource(RAMLResource):
+                def create_view(self, document):
+                    action_result = custom_action(document)
+                    insert_result = self.mongo_collection.insert_one(document)
+        """
         return self.mongo_collection.insert_one(document)
 
     def _create_view(self):
@@ -224,9 +255,7 @@ class RAMLResource(MongoView):
         if not self.create_allowed(document):
             abort(401)
             return
-        result = self.create_view(document)
-        document["id"] = str(document["_id"])
-        del document["_id"]
+        self.create_view(document)
         response = self.json_response(document)
         return response
 
@@ -234,6 +263,16 @@ class RAMLResource(MongoView):
         return True
 
     def list_view(self):
+        """Lists documents from a collection.
+
+        You can override this to implement custom list behavior
+
+        ..code-block:: python
+
+            class MyAPIResource(RAMLResource):
+                def list_view(self):
+                    return [{"id":1, myfield":"foo"}, {"id":2, myfield":"bar"}]
+        """
         find_cursor = self.mongo_collection.find()
         return find_cursor
 
@@ -251,6 +290,12 @@ class RAMLResource(MongoView):
 
 
     def item_view(self, document_id):
+        """Responds with details about a specific item.
+
+        Override this to implement a custom item view.
+
+        :param document_id string:  ID of the document to display, from url parameter
+        """
         object_id = ObjectId(document_id)
         return self.find_one_or_404({"_id":object_id})
 
@@ -270,6 +315,13 @@ class RAMLResource(MongoView):
         return True
 
     def update_view(self, update_document, existing_document):
+        """Updates a document in the database.
+
+        Override this to implement custom update behavior.
+
+        :param update_document dict: Validated request body
+        :param existing_document dict: Document as it exists in mongodb now
+        """
         new_document = existing_document.copy()
         new_document.update(update_document)
         return new_document
@@ -292,6 +344,12 @@ class RAMLResource(MongoView):
         return True
 
     def delete_view(self, document_id):
+        """Deletes a document from the database.
+
+        Override this to implement custom delete behavior.
+
+        :param document_id str: ID of the document to delete, from url parameter
+        """
         if not self.delete_allowed(document_id):
             abort(401)
             return
