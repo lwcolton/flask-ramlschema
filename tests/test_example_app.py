@@ -86,7 +86,7 @@ class TestExampleApp(TestCase):
         test_document_id = ObjectId()
         test_document = {"breed":"tabby", "name":"muffins"}
         def add_doc_id(document_to_create):
-            document_to_create["_id"] = test_document_id
+            document_to_create["id"] = test_document_id
         result_document = copy.deepcopy(test_document)
         result_document["id"] = str(test_document_id)
         with mock.patch.object(self.resource, "create_view", side_effect=add_doc_id) as mock_create_view:
