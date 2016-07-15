@@ -247,7 +247,8 @@ class RAMLResource(MongoView):
                     action_result = custom_action(document)
                     insert_result = self.mongo_collection.insert_one(document)
         """
-        return self.mongo_collection.insert_one(document)
+        result = self.mongo_collection.insert_one(document)
+        document["id"] = str(result.inserted_id)
 
     def _create_view(self):
         request_dict = self.get_request_json(self.new_item_schema)
