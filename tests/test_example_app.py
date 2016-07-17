@@ -9,20 +9,21 @@ import uuid
 from bson.objectid import ObjectId
 from flask import Flask
 from flask_ramlschema.views import RAMLResource
+import yaml
 
 logger = logging.getLogger(__name__)
 
 class TestExampleApp(TestCase):
     def setUp(self):
         tests_dir = os.path.dirname(sys.modules[__name__].__file__)
-        collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../raml/resources/cats-collection.raml"))
-        item_raml_file = os.path.abspath(os.path.join(tests_dir, "../raml/resources/cats-item.raml"))
+        self.collection_raml_file = os.path.abspath(os.path.join(tests_dir, "../raml/resources/cats-collection.raml"))
+        self.item_raml_file = os.path.abspath(os.path.join(tests_dir, "../raml/resources/cats-item.raml"))
         self.mongo_client = mock.MagicMock()
         self.mongo_collection = mock.MagicMock()
         self.flask_app = Flask("test_app")
         self.flask_app.config['TESTING'] = True
         self.resource = RAMLResource.from_files(
-            collection_raml_file, item_raml_file, 
+            self.collection_raml_file, self.item_raml_file, 
             url_path="/cats", flask_app=self.flask_app,
             mongo_collection = self.mongo_collection
             )
@@ -112,4 +113,12 @@ class TestExampleApp(TestCase):
         self.mongo_collection.find_one_and_delete.assert_called_once_with({"_id":ObjectId(test_document_id)})
         self.assertEquals(response.status_code, 204)
 
-
+    def test_schema_endpoints(self):
+        collection_raml = open(self.collection_raml_file).read()
+        new_item_schema = yaml.load(collection_raml)["type"]["collection"]["newItemSchema"]
+        new_schema_response = self.test_client.get("/cats-new-schema.json")
+        self.assertEquals(json.loads(new_schema_response.data.decode("utf-8")), json.loads(new_item_schema))
+        item_raml = open(self.item_raml_file).read()
+        update_item_schema = yaml.load(item_raml)["type"]["collection-item"]["updateItemSchema"]
+        update_schema_response = self.test_client.get("/cats-update-schema.json")
+        self.assertEquals(json.loads(update_schema_response.data.decode("utf-8")), json.loads(update_item_schema))

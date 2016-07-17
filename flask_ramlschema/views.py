@@ -180,6 +180,21 @@ class RAMLResource(MongoView):
             view_func=self.dispatch_request,
             methods=["GET", "POST", "DELETE"]
             )
+        url_path_new_schema = "{0}-new-schema.json".format(url_path)
+        flask_app.add_url_rule(
+            url_path_new_schema,
+            endpoint=resource_name + "_new_schema",
+            view_func=self.new_schema_view,
+            methods=["GET"]
+            )
+        url_path_update_schema = "{0}-update-schema.json".format(url_path)
+        flask_app.add_url_rule(
+            url_path_update_schema,
+            endpoint=resource_name + "_item_schema",
+            view_func=self.update_schema_view,
+            methods=["GET"]
+            )
+
 
     def parse_raml(self, collection_raml, item_raml):
         self.parse_raml_collection(collection_raml)
@@ -368,3 +383,9 @@ class RAMLResource(MongoView):
     def delete_allowed(self, document_id):
         return True
 
+
+    def new_schema_view(self):
+        return self.json_response(self.new_item_schema)
+
+    def update_schema_view(self):
+        return self.json_response(self.update_item_schema)
