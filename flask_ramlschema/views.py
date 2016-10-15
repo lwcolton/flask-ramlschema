@@ -9,18 +9,22 @@ from flask.views import MethodView
 import pymongo
 import yaml
 
-from .http_errors import BodyValidationError, BodyDecodeError
+from .errors import BodyValidationHTTPError, BodyDecodeHTTPError, InvalidPageHTTPError
+from .errors import InvalidPageError
 from .json_encoder import JSONEncoder
 from .pagination import get_page
 from .validate import get_json_errors
 
 class APIView(MethodView):
+
+    body_validation_error_class = BodyValidationHTTPError
+    body_decode_error_class = BodyDecodeHTTPError
+
     def get_request_json(self, schema):
         request_body = self.decode_request_json()
         errors = get_json_errors(request_body, schema)
         if errors:
-            self.raise_body_validation_error(errors)
-            return None
+            raise self.body_validation_error_class(errors)
         return request_body
 
     def set_response_json(self, response, response_dict, status=200):
@@ -32,17 +36,13 @@ class APIView(MethodView):
         try:
             request_body = json.loads(request.data.decode("utf-8"))
         except json.JSONDecodeError as decode_error:
-            self.raise_body_decode_error(decode_error)
-            return None
-
-    def raise_body_validation_error(self, errors):
-        raise BodyValidationError(errors)
-
-    def raise_body_decode_error(self, decode_error):
-        raise BodyDecodeError(decode_error)
+            raise self.body_decode_error_class(decode_error)
 
 
 class ModelView(APIView):
+
+    invalid_page_error_class = InvalidPageHTTPError
+
     def __init__(self, model_collection, logger=None):
         if logger is None:
             logger = logging.getLogger(__name__)
@@ -79,7 +79,10 @@ class ModelView(APIView):
             abort(401)
             return
         find_cursor = self.model_collection.find_all()
-        page = get_page(find_cursor)
+        try:
+            page = get_page(find_cursor)
+        except InvalidPageError as invalid_page_error:
+            raise InvalidPageHTTPError(invalid_page_error.page_num)
         response = Response()
         self.set_response_json(response, page)
         return response

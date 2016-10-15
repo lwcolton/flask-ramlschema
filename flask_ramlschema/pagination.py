@@ -3,6 +3,7 @@ import math
 from flask import request
 import pymongo
 
+from .errors import InvalidPageError
 
 def get_page(find_cursor, page_request=None):
     if page_request is None:
@@ -11,25 +12,36 @@ def get_page(find_cursor, page_request=None):
     page = create_page(find_cursor, page_num, per_page, sort_by, order, order_arg)
     return page
 
-def create_page(find_cursor, page_num, per_page, sort_by, order, order_arg):
-    total_entries = find_cursor.count()
+def create_page(self, items, page_num, per_page, order, items_key="sorted"):
+    """Slices items to create a page.
+
+    Args:
+        items (list): List of items to paginate
+        page_num (int): Number of page to return
+        per_page (int): Number of items per page
+        order (string): One of 'ascending', 'descending'
+        items_key (string): Key in the return object which maps to the list of items.
+    """
+    total_entries = len(items)
     page_wrapper = {}
     page_wrapper["page"] = page_num
     page_wrapper["per_page"] = per_page
-    page_wrapper["total_pages"] = int(math.ceil(total_entries / float(page_wrapper["per_page"])))
+    total_pages = int(math.ceil(total_entries / float(page_wrapper["per_page"])))
+    if total_pages == 0:
+        total_pages = 1
+    page_wrapper["total_pages"] = total_pages
     page_wrapper["total_entries"] = total_entries
-    page_wrapper["sort_by"] = sort_by
-    page_wrapper["order"] = order_arg
-    if page_wrapper["page"] > page_wrapper["total_pages"] or page_wrapper["page"] < 1:
-        if total_entries != 0 or page_wrapper["page"] != 1:
-            raise ValueError("invalid page number: {0]".format(page_wrapper["page"]))
-    skip_num = per_page*(page_num-1)
-    find_cursor.sort(sort_by, order).skip(skip_num).limit(per_page)
-    items = list(find_cursor)
-    for mongo_doc in items:
-        mongo_doc["id"] = mongo_doc["_id"]
-        del mongo_doc["_id"]
-    page_wrapper["items"] = items
+    page_wrapper["order"] = order
+    if page_num > page_wrapper["total_pages"] or page < 1:
+        raise InvalidPageError(page_num)
+    page_start = per_page*(page_num-1)
+    page_end = page_start + per_page
+    if order == "descending":
+        # http://stackoverflow.com/questions/3705670/best-way-to-create-a-reversed-list-in-python
+        page_items = items[::-1][page_start:page_end]
+    else:
+        page_items = items[page_start:page_end]
+    page_wrapper[items_key] = page_items
     return page_wrapper
 
 def get_pagination_args(request, max_per_page=100):
