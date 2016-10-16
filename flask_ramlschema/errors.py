@@ -26,6 +26,7 @@ class BodyValidationHTTPError(HTTPError):
             "error_type":"request_body_validation",
 			"validation_errors":self.errors,
 		}
+		
 class BodyDecodeHTTPError(HTTPError):
     def __init__(self, decode_error, status=400):
         self.decode_error = decode_error

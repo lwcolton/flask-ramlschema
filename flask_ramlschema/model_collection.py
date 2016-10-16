@@ -6,19 +6,18 @@ from .validate import get_json_errors
 class ModelCollection:
     def __init__(self, mongo_collection, model_schema):
         self.model_schema = model_schema
-        self._mongo_collection = mongo_collection
+        self.mongo_collection = mongo_collection
 
     def new(self, document, validate=False, **kwargs):
-        document.setdefault("_id", ObjectId())
         if validate:
             self.validate(document)
-        return self._mongo_collection.insert_one(document, **kwargs)
+        return self.mongo_collection.insert_one(document, **kwargs)
 
     def replace_one_id(self, document_id, document, validate=False, **kwargs):
         if validate:
             self.validate(document)
         mongo_filter = {"_id":document_id}
-        return self._mongo_collection.replace_one(
+        return self.mongo_collection.replace_one(
             mongo_filter,
             document,
             **kwargs

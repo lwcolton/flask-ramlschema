@@ -4,7 +4,6 @@ import logging
 from bson.objectid import ObjectId
 import bson.json_util
 from flask import abort, request, Response
-from flask.views import MethodView
 
 import pymongo
 import yaml
@@ -15,7 +14,8 @@ from .json_encoder import JSONEncoder
 from .pagination import get_page
 from .validate import get_json_errors
 
-class APIView(MethodView):
+
+class APIView:
 
     body_validation_error_class = BodyValidationHTTPError
     body_decode_error_class = BodyDecodeHTTPError
@@ -82,7 +82,7 @@ class ModelView(APIView):
         try:
             page = get_page(find_cursor)
         except InvalidPageError as invalid_page_error:
-            raise InvalidPageHTTPError(invalid_page_error.page_num)
+            raise self.invalid_page_error_class(invalid_page_error.page_num)
         response = Response()
         self.set_response_json(response, page)
         return response
@@ -102,15 +102,20 @@ class ModelView(APIView):
     def item_view_allowed(self, document_id):
         return True
 
-    def replace_view(self, document_id):
-        document = self.get_request_json(self.item_schema)
+    def update_view(self, document_id):
+        update_document = self.get_request_json(self.update_item_schema)
         if not self.use_string_id:
             document_id = ObjectId(document_id)
-            document["_id"] = document_id
+            update_document["_id"] = document_id
+
         if not self.replace_allowed(document_id):
             abort(401)
-            return
-        result = self.model_collection.replace_one_id({"_id":document_id}, document)
+
+        existing_document = self.find_one_or_404(document_id)
+        for update_key, update_value in update_document.items():
+            existing_document[update_key] = update_value
+
+        result = self.model_collection.replace_one_id({"_id":document_id}, existing_document)
         if result.matched_count != 1:
             abort(404)
         response = Response()
