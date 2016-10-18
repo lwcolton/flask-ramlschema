@@ -6,6 +6,7 @@ from . import setting_names
 
 def init_app(app, raml_source):
     resources = {}
+    raml_api = ramlfications.parse(raml_source)
     for endpoint in raml_api.resources:
         resources.setdefault(endpoint.path, {})
         resources[endpoint.path][endpoint.method.upper()] = endpoint
