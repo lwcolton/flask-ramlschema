@@ -23,7 +23,7 @@ class CollectionView(ModelView):
         if not self.get_allowed():
             abort(401)
             return
-        find_cursor = self.collection_model.find_all()
+        find_cursor = self.model.find_all()
         try:
             page = get_page(find_cursor)
         except InvalidPageError as invalid_page_error:
@@ -39,7 +39,7 @@ class CollectionView(ModelView):
         document = flask.request.json
         if not self.post_allowed(document):
             abort(401)
-        result = self.collection_model.new(document)
+        result = self.model.new(document)
         response = Response()
         self.set_response_json(response, document)
         return response
@@ -76,7 +76,7 @@ class CollectionItemView(ModelView):
         existing_document = self.find_one_or_404(document_id)
         for update_key, update_value in update_document.items():
             existing_document[update_key] = update_value
-        result = self.collection_model.replace_one_id(
+        result = self.model.replace_one_id(
             {"_id":document_id}, existing_document
             )
         if result.matched_count != 1:
@@ -92,7 +92,7 @@ class CollectionItemView(ModelView):
         if not self.delete_allowed(document_id):
             abort(401)
         object_id = ObjectId(document_id)
-        document = self.collection_model.delete_one_id({"_id":object_id})
+        document = self.model.delete_one_id({"_id":object_id})
         if not document:
             abort(404)
         response = Response()

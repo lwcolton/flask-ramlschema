@@ -1,5 +1,7 @@
 import flask
 
+from werkzeug.exceptions import MethodNotAllowed
+
 from .errors import BodyValidationHTTPError
 from ..json_encoder import JSONEncoder
 from ..validate import body_validators
@@ -23,7 +25,9 @@ class ResourceView(flask.MethodView):
         return self.endpoints_raml.get(request.method)
 
     def dispatch_request(self, *args, **kwargs):
-        self.validate_request()
+        method_lower = request.method.lower()
+        if method_lower in self.methods:
+            self.validate_request()
         response_data = super().dispatch_request(*args, **kwargs)
         if response_data is not None:
             if content_type == "application/json":
