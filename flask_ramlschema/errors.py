@@ -1,7 +1,7 @@
 class RAMLSchemaError(Exception):
 	pass
 
-class DatabaseValidaitionError(RAMLSchemaError):
+class DatabaseValidationError(RAMLSchemaError):
 	def __init__(self, errors):
 		self.errors = errors
 		error_message = "Failed to validate document: {0}".format(errors)
@@ -26,8 +26,8 @@ class BodyValidationHTTPError(HTTPError):
             "error_type":"request_body_validation",
 			"validation_errors":self.errors,
 		}
-		
-class BodyDecodeHTTPError(HTTPError):
+
+class JSONDecodeHTTPError(HTTPError):
     def __init__(self, decode_error, status=400):
         self.decode_error = decode_error
         self.status = status

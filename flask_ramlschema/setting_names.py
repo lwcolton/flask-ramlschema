@@ -1,0 +1,1 @@
+mongo_client = "FLASK_RAMLSCHEMA_MONGO_CLIENT"
