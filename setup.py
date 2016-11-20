@@ -12,7 +12,7 @@ setup(
     description = "Framework for HTTP API's using RAML and Flask",
     url = "https://github.com/lwcolton/flask-ramlschema",
     author = "Colton Leekley-Winslow",
-    author_email = "colton@hurricanelabs.com",
+    author_email = "lwcolton@gmail.com",
     packages=find_packages(exclude=['tests']),
     install_requires = ["flask", "jsonschema", "pymongo", "pyyaml"],
 )
